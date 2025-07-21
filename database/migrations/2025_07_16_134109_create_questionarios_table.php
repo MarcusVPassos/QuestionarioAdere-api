@@ -17,6 +17,7 @@ return new class extends Migration
             $table->json('dados');
             $table->enum('status', ['pendente', 'aprovado', 'negado', 'correcao'])->default('pendente');
             $table->text('motivo_negativa')->nullable();
+            $table->text('comentario_correcao')->nullable();
             $table->timestamps();
         });
     }
