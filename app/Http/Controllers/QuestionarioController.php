@@ -11,10 +11,46 @@ use Illuminate\Support\Facades\Storage;
 class QuestionarioController extends Controller
 {
 
-    public function index()
+    public function index(Request $request)
     {
-        return Questionario::with('documentos')->get();
+        $query = Questionario::with('documentos')->orderByDesc('created_at');
+
+        // Filtro de visibilidade por tipo de usuário
+        if ($request->boolean('so_user')) {
+            $query->whereIn('status', ['aprovado', 'negado']);
+        }
+
+        // Filtros
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('tipo')) {
+            $query->where('tipo', $request->tipo);
+        }
+
+        if ($request->filled('ano')) {
+            $query->whereYear('created_at', $request->ano);
+        }
+
+        if ($request->filled('mes')) {
+            $query->whereMonth('created_at', $request->mes);
+        }
+
+        if ($request->filled('nome')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('dados->nome', 'like', '%' . $request->nome . '%')
+                ->orWhere('dados->razao', 'like', '%' . $request->nome . '%');
+            });
+        }
+
+        if ($request->filled('protocolo')) {
+            $query->where('id', $request->protocolo);
+        }
+
+        return $query->paginate(10);
     }
+
 
     public function store(Request $request)
     {
@@ -112,56 +148,65 @@ class QuestionarioController extends Controller
             ->get();
     }
 
-public function update(Request $request, $id)
-{
-    $dadosRaw = $request->input('dados');
+    public function update(Request $request, $id)
+    {
+        $dadosRaw = $request->input('dados');
 
-    if (!$dadosRaw) {
-        return response()->json(['message' => 'O campo "dados" é obrigatório.'], 422);
-    }
-
-    $dados = json_decode($dadosRaw, true);
-
-    if (json_last_error() !== JSON_ERROR_NONE || !is_array($dados)) {
-        return response()->json(['message' => 'O campo "dados" deve ser um JSON válido.'], 422);
-    }
-
-    $request->merge(['dados' => $dados]);
-
-    $request->validate([
-        'dados' => 'required|array',
-        'documentos.*' => 'file|max:5120',
-    ]);
-
-    if (!in_array($dados['tipo'] ?? '', ['pf', 'pj'])) {
-        return response()->json(['message' => 'Tipo inválido'], 422);
-    }
-
-    $questionario = Questionario::findOrFail($id);
-    $questionario->dados = $dados;
-    $questionario->status = 'pendente';
-    $questionario->comentario_correcao = null;
-    $questionario->motivo_negativa = null;
-    $questionario->save();
-
-    if ($request->hasFile('documentos')) {
-        foreach ($request->file('documentos') as $file) {
-            $path = $file->store('documentos', 'public');
-
-            Documento::create([
-                'questionario_id' => $questionario->id,
-                'nome_original' => $file->getClientOriginalName(),
-                'caminho' => $path,
-                'mime_type' => $file->getClientMimeType(),
-            ]);
+        if (!$dadosRaw) {
+            return response()->json(['message' => 'O campo "dados" é obrigatório.'], 422);
         }
+
+        $dados = json_decode($dadosRaw, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($dados)) {
+            return response()->json(['message' => 'O campo "dados" deve ser um JSON válido.'], 422);
+        }
+
+        $request->merge(['dados' => $dados]);
+
+        $request->validate([
+            'dados' => 'required|array',
+            'documentos.*' => 'file|max:5120',
+        ]);
+
+        if (!in_array($dados['tipo'] ?? '', ['pf', 'pj'])) {
+            return response()->json(['message' => 'Tipo inválido'], 422);
+        }
+
+        $questionario = Questionario::findOrFail($id);
+        $questionario->dados = $dados;
+        $questionario->status = 'pendente';
+        $questionario->comentario_correcao = null;
+        $questionario->motivo_negativa = null;
+        $questionario->save();
+
+        if ($request->hasFile('documentos')) {
+            foreach ($request->file('documentos') as $file) {
+                $path = $file->store('documentos', 'public');
+
+                Documento::create([
+                    'questionario_id' => $questionario->id,
+                    'nome_original' => $file->getClientOriginalName(),
+                    'caminho' => $path,
+                    'mime_type' => $file->getClientMimeType(),
+                ]);
+            }
+        }
+
+        return response()->json([
+            'message' => 'Questionário atualizado com sucesso.',
+            'status' => 'pendente',
+        ]);
     }
 
-    return response()->json([
-        'message' => 'Questionário atualizado com sucesso.',
-        'status' => 'pendente',
-    ]);
-}
+    public function anosEMesesDisponiveis()
+    {
+        return Questionario::selectRaw('YEAR(created_at) as ano, MONTH(created_at) as mes')
+            ->distinct()
+            ->orderByDesc('ano')
+            ->orderByDesc('mes')
+            ->get();
+    }
 
 
 }
