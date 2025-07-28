@@ -30,7 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     // Rotas exclusivas para supervisores
-    Route::middleware('role:supervisor')->group(function () {
+    Route::middleware('role:supervisor,diretoria')->group(function () {
         Route::patch('/questionarios/{id}/status', [QuestionarioController::class, 'atualizarStatus']);
 
         // Gerenciamento de usuários
@@ -40,5 +40,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/usuarios/{id}/role', [UserController::class, 'atualizarRole']);
         Route::put('/usuarios/{id}/senha', [UserController::class, 'atualizarSenha']);
         Route::delete('/usuarios/{id}', [UserController::class, 'destroy']);
+    });
+
+    // Rotas exclusivas para diretoria
+    Route::middleware('role:diretoria')->group(function () {
+        
     });
 });

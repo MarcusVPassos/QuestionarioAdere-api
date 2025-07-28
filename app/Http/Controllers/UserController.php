@@ -19,7 +19,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|unique:users,name',
             'password' => ['required', 'string', 'min:6'],
-            'role' => 'required|in:user,supervisor',
+            'role' => 'required|in:user,supervisor,diretoria',
         ]);
 
         $user = User::create([
@@ -34,7 +34,7 @@ class UserController extends Controller
     public function atualizarRole(Request $request, $id)
     {
         $request->validate([
-            'role' => 'required|in:user,supervisor',
+            'role' => 'required|in:user,supervisor,diretoria',
         ]);
 
         $user = User::findOrFail($id);
