@@ -16,7 +16,7 @@ class QuestionarioController extends Controller
         $query = Questionario::with('documentos')->orderByDesc('created_at');
 
         // Filtro de visibilidade por tipo de usuário
-        if ($request->boolean('so_user')) {
+        if ($request->boolean('so_user') && !$request->filled('status')) {
             $query->whereIn('status', ['aprovado', 'negado']);
         }
 
@@ -46,6 +46,10 @@ class QuestionarioController extends Controller
 
         if ($request->filled('protocolo')) {
             $query->where('id', $request->protocolo);
+        }
+
+        if (!$request->filled('status')) {
+            $query->where('status', '!=', 'correcao');
         }
 
         return $query->paginate(10);
