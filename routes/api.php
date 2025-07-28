@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\CotacaoController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentoController;
 use App\Http\Controllers\QuestionarioController;
 use App\Http\Controllers\UserController;
@@ -44,6 +46,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rotas exclusivas para diretoria
     Route::middleware('role:diretoria')->group(function () {
+
         
+        Route::post('/cotacoes', [CotacaoController::class, 'store']);
+        Route::get('/dashboard', [DashboardController::class, 'index']);
+        Route::get('/dashboard/disponiveis', [DashboardController::class, 'disponiveis']);
     });
 });
