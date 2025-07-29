@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Cotacao;
 use App\Models\Questionario;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Http;
 
 class DashboardController extends Controller
 {
@@ -34,31 +34,27 @@ class DashboardController extends Controller
                     'pendentes' => Questionario::whereDate('created_at', $data)->where('status', 'pendente')->count(),
                     'negados'   => Questionario::whereDate('created_at', $data)->where('status', 'negado')->count(),
                     'correcao'  => Questionario::whereDate('created_at', $data)->where('status', 'correcao')->count(),
-                    'cotacoes'  => Cotacao::whereDate('data', $data)->count(),
+                    'cotacoes'  => 0, // será preenchido no Angular
                 ],
                 'diario' => [[
                     'data' => $data,
                     'questionarios' => Questionario::whereDate('created_at', $data)->count(),
-                    'cotacoes' => Cotacao::whereDate('data', $data)->count(),
+                    'cotacoes' => 0 // será preenchido no Angular
                 ]]
             ]);
         }
 
-        // 📆 LÓGICA MENSAL PADRÃO (caso não envie dia)
+        // 📆 MENSAL COMPLETO
         $questionariosMensal = Questionario::selectRaw("status, COUNT(*) as total")
             ->whereYear('created_at', $ano)
             ->whereMonth('created_at', $mes)
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $totalCorrecao = $questionariosMensal['correcao'] ?? 0;
         $totalAprovados = $questionariosMensal['aprovado'] ?? 0;
+        $totalCorrecao = $questionariosMensal['correcao'] ?? 0;
 
-        $cotacoesMes = Cotacao::whereYear('data', $ano)
-            ->whereMonth('data', $mes)
-            ->count();
-
-        // 💰 VENDAS POR TIPO DE CONTRATO (via dados->tempo)
+        // 💰 VENDAS POR TIPO DE CONTRATO
         $vendas = Questionario::where('status', 'aprovado')
             ->whereYear('created_at', $ano)
             ->whereMonth('created_at', $mes)
@@ -82,21 +78,14 @@ class DashboardController extends Controller
             }
         }
 
-        // 📈 Aproveitamento (%)
-        $aproveitamento = $cotacoesMes > 0
-            ? round(($totalAprovados / $cotacoesMes) * 100, 2)
-            : 0;
-
-        // ✅ Correção aqui com createFromDate
         $diasNoMes = Carbon::createFromDate($ano, $mes, 1)->daysInMonth;
 
         $diasDoMes = collect(range(1, $diasNoMes))->map(function ($dia) use ($ano, $mes) {
             $data = sprintf('%04d-%02d-%02d', $ano, $mes, $dia);
-
             return [
                 'data' => $data,
                 'questionarios' => Questionario::whereDate('created_at', $data)->count(),
-                'cotacoes' => Cotacao::whereDate('data', $data)->count(),
+                'cotacoes' => 0 // será preenchido no Angular
             ];
         });
 
@@ -106,9 +95,9 @@ class DashboardController extends Controller
                 'pendentes' => $questionariosMensal['pendente'] ?? 0,
                 'negados'   => $questionariosMensal['negado'] ?? 0,
                 'correcao'  => $totalCorrecao,
-                'cotacoes'  => $cotacoesMes,
+                'cotacoes'  => 0, // será preenchido via Angular
                 'vendas_por_tipo' => $vendasPorTipo,
-                'aproveitamento'  => $aproveitamento
+                'aproveitamento'  => 0 // calculado no frontend
             ],
             'diario' => $diasDoMes
         ]);
@@ -121,17 +110,6 @@ class DashboardController extends Controller
             ->get()
             ->toArray();
 
-        $cotacoes = Cotacao::selectRaw('YEAR(data) as ano, MONTH(data) as mes')
-            ->groupBy('ano', 'mes')
-            ->get()
-            ->toArray();
-
-        $todos = collect($questionarios)
-            ->merge($cotacoes)
-            ->unique(fn ($item) => $item['ano'] . '-' . $item['mes'])
-            ->sortByDesc(fn ($item) => $item['ano'] * 100 + $item['mes'])
-            ->values();
-
-        return response()->json($todos);
+        return response()->json($questionarios); // cotações virão de outro lugar
     }
 }
