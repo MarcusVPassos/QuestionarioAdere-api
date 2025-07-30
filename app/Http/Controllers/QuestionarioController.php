@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\NovoQuestionarioCriado;
 use Illuminate\Http\Request;
 use App\Models\Questionario;
 use App\Models\Documento;
@@ -72,6 +73,7 @@ class QuestionarioController extends Controller
         $questionario = Questionario::create([
             'tipo' => $dados['tipo'],
             'dados' => $dados,
+            'status' => 'pendente',
         ]);
 
         if ($request->hasFile('documentos')) {
@@ -86,6 +88,12 @@ class QuestionarioController extends Controller
                 ]);
             }
         }
+
+        // 3) Recarrega defaults e a relação
+        $questionario->refresh();               // carrega o default do DB (status = 'pendente')
+        $questionario->load('documentos');      // carrega a coleção de documentos
+
+        event(new NovoQuestionarioCriado($questionario));
 
         return response()->json([
             'message' => 'Questionário enviado com sucesso',

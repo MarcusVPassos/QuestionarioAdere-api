@@ -1,5 +1,6 @@
 <?php
 
+use App\Events\NovoQuestionarioCriado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
@@ -12,6 +13,11 @@ use App\Http\Controllers\UserController;
 
 // Rota pública para login
 Route::post('/login', LoginController::class);
+
+        // Route::get('/teste-pusher', function () {
+        //     event(new NovoQuestionarioCriado(['msg' => 'funcionando do Laravel']));
+        //     return response()->json(['status' => 'evento disparado']);
+        // });
 
 // Rotas protegidas por Sanctum
 Route::middleware('auth:sanctum')->group(function () {
@@ -46,6 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rotas exclusivas para diretoria
     Route::middleware('role:diretoria')->group(function () {
+
 
         Route::get('/cotacoes-google', [CotacaoGoogleController::class, 'index']);
         Route::get('/cotacoes-google/por-dia', [CotacaoGoogleController::class, 'porDia']); 

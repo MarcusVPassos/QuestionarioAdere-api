@@ -4,36 +4,37 @@ namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class NovoQuestionarioCriado implements ShouldBroadcast
+class NovoQuestionarioCriado implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $dados;
+    public $questionario;
 
-    /**
-     * Create a new event instance.
-     */
-    public function __construct($dados)
+    public function __construct(\App\Models\Questionario $q)
     {
-        $this->dados = $dados;
+        // já garantimos no controller que vem carregado
+        $this->questionario = $q;
     }
 
-    /**
-     * Get the channels the event should broadcast on.
-     *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
-     */
-    public function broadcastOn(): array
+    public function broadcastOn(): Channel
+    {
+        return new Channel('questionarios');
+    }
+
+    public function broadcastAs(): string
+    {
+        return 'novo-questionario';
+    }
+
+    public function broadcastWith(): array
     {
         return [
-            new Channel('questionarios'),
+            // aqui virá id, tipo, dados, status, created_at E 'documentos'
+            'questionario' => $this->questionario->toArray(),
         ];
     }
-
 }

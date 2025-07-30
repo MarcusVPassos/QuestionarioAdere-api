@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\NovoQuestionarioCriado;
 use App\Models\Questionario;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -112,4 +113,16 @@ class DashboardController extends Controller
 
         return response()->json($questionarios); // cotações virão de outro lugar
     }
+
+// public function testeEvento()
+// {
+//     $dados = [
+//         'nome' => 'Teste Pusher',
+//         'data' => now()->toDateTimeString(),
+//     ];
+
+//     event(new NovoQuestionarioCriado($dados));
+
+//     return response()->json(['ok' => true]);
+// }
 }
