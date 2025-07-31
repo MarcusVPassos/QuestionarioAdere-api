@@ -144,6 +144,7 @@ class QuestionarioController extends Controller
         }
 
         $questionario->save();
+        event(new NovoQuestionarioCriado($questionario));
 
         return response()->json([
             'message' => 'Status atualizado com sucesso.',
@@ -204,6 +205,9 @@ class QuestionarioController extends Controller
                 ]);
             }
         }
+
+        $questionario->refresh()->load('documentos'); // carrega dados atualizados + documentos
+        event(new NovoQuestionarioCriado($questionario));
 
         return response()->json([
             'message' => 'Questionário atualizado com sucesso.',
