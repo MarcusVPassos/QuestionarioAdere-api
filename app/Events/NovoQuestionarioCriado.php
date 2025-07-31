@@ -32,9 +32,11 @@ class NovoQuestionarioCriado implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
-        return [
-            // aqui virá id, tipo, dados, status, created_at E 'documentos'
-            'questionario' => $this->questionario->toArray(),
-        ];
+        // return [
+        //     // aqui virá id, tipo, dados, status, created_at E 'documentos'
+        //     // 'questionario' => $this->questionario->toArray(),
+        //     $this->questionario->load('documentos')->toArray(),
+        // ];
+        return $this->questionario->load('documentos')->toArray();
     }
 }
