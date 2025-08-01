@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\Questionario;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -14,7 +15,7 @@ class NovoQuestionarioCriado implements ShouldBroadcastNow
 
     public $questionario;
 
-    public function __construct(\App\Models\Questionario $q)
+    public function __construct(Questionario $q)
     {
         // já garantimos no controller que vem carregado
         $this->questionario = $q;

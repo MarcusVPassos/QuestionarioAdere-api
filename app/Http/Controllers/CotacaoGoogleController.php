@@ -4,10 +4,34 @@ namespace App\Http\Controllers;
 
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class CotacaoGoogleController extends Controller
 {
+    private function proximaRenovacao()
+    {
+        $agora = now();
+        $horarios = [
+            ['hora' => 8,  'min' => 0],
+            ['hora' => 10, 'min' => 0],
+            ['hora' => 12, 'min' => 0],
+            ['hora' => 14, 'min' => 0],
+            ['hora' => 16, 'min' => 0],
+            ['hora' => 17, 'min' => 45],
+        ];
+
+        foreach ($horarios as $h) {
+            $proxima = now()->setTime($h['hora'], $h['min']);
+            if ($proxima->isAfter($agora)) {
+                return $proxima;
+            }
+        }
+
+        // Se passou das 17:45, expira no próximo dia às 08:00
+        return now()->addDay()->setTime(8, 0);
+    }
+
     public function index(Request $request)
     {
         $mes = $request->query('mes');
@@ -18,49 +42,59 @@ class CotacaoGoogleController extends Controller
             return response()->json(['error' => 'Parâmetros mes, ano e dia são obrigatórios'], 400);
         }
 
-        $url = 'https://script.google.com/macros/s/AKfycbwlXklGk2skVhaG-Qw7masPcapFrNkgpmn8ycvDzNuWLTpWQB1346MkSvh9tYquaBqing/exec';
-        $data = sprintf('%d/%d/%d', $dia, $mes, $ano);
+        $cacheKey = "cotacoes_google_dia_{$ano}_{$mes}_{$dia}";
+        $expire = $this->proximaRenovacao();
+        $cached = Cache::remember($cacheKey, $expire, function () use ($mes, $ano, $dia) {
+            $url = 'https://script.google.com/macros/s/AKfycbwlXklGk2skVhaG-Qw7masPcapFrNkgpmn8ycvDzNuWLTpWQB1346MkSvh9tYquaBqing/exec';
+            $data = sprintf('%d/%d/%d', $dia, $mes, $ano);
+            $params = [
+                'action' => 'resumoCotacoes',
+                'data' => $data,
+                'mes' => $mes,
+                'ano' => $ano,
+            ];
 
-        $params = [
-            'action' => 'resumoCotacoes',
-            'data' => $data,
-            'mes' => $mes,
-            'ano' => $ano,
-        ];
+            $response = Http::get($url, $params);
+            return $response->successful() ? $response->json() : null;
+        });
 
-        $response = Http::get($url, $params);
-
-        if (!$response->successful()) {
+        if (!$cached) {
             return response()->json(['error' => 'Erro ao acessar planilha'], 500);
         }
 
-        return response()->json($response->json());
+        return response()->json($cached);
     }
 
-public function porDia(Request $request)
-{
-    $mes = $request->query('mes');
-    $ano = $request->query('ano');
 
-    if (!$mes || !$ano) {
-        return response()->json(['error' => 'Parâmetros mes e ano são obrigatórios'], 400);
+    public function porDia(Request $request)
+    {
+        $mes = $request->query('mes');
+        $ano = $request->query('ano');
+
+        if (!$mes || !$ano) {
+            return response()->json(['error' => 'Parâmetros mes e ano são obrigatórios'], 400);
+        }
+
+        $cacheKey = "cotacoes_google_mes_{$ano}_{$mes}";
+        $expire = $this->proximaRenovacao();
+        $cached = Cache::remember($cacheKey, $expire, function () use ($mes, $ano) {
+            $url = 'https://script.google.com/macros/s/AKfycbwlXklGk2skVhaG-Qw7masPcapFrNkgpmn8ycvDzNuWLTpWQB1346MkSvh9tYquaBqing/exec';
+            $params = [
+                'action' => 'resumoCotacoesPorDia',
+                'mes' => $mes,
+                'ano' => $ano,
+            ];
+
+            $response = Http::get($url, $params);
+            return $response->successful() ? $response->json() : null;
+        });
+
+        if (!$cached) {
+            return response()->json(['error' => 'Erro ao acessar planilha'], 500);
+        }
+
+        return response()->json($cached);
     }
 
-    $url = 'https://script.google.com/macros/s/AKfycbwlXklGk2skVhaG-Qw7masPcapFrNkgpmn8ycvDzNuWLTpWQB1346MkSvh9tYquaBqing/exec';
-
-    $params = [
-        'action' => 'resumoCotacoesPorDia',
-        'mes' => $mes,
-        'ano' => $ano,
-    ];
-
-    $response = Http::get($url, $params);
-
-    if (!$response->successful()) {
-        return response()->json(['error' => 'Erro ao acessar planilha'], 500);
-    }
-
-    return response()->json($response->json());
-}
 
 }

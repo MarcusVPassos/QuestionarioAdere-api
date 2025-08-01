@@ -10,6 +10,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentoController;
 use App\Http\Controllers\QuestionarioController;
 use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 // Rota pública para login
 Route::post('/login', LoginController::class);
@@ -58,5 +60,34 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/cotacoes-google/por-dia', [CotacaoGoogleController::class, 'porDia']); 
         Route::get('/dashboard', [DashboardController::class, 'index']);
         Route::get('/dashboard/disponiveis', [DashboardController::class, 'disponiveis']);
+
+            // ✅ ROTA PARA FORÇAR ATUALIZAÇÃO DAS COTAÇÕES (manualmente)
+        Route::get('/cotacoes-google/forcar', function (Request $request) {
+            $mes = $request->query('mes');
+            $ano = $request->query('ano');
+
+            if (!$mes || !$ano) {
+                return response()->json(['error' => 'Parâmetros mes e ano são obrigatórios'], 400);
+            }
+
+            $url = 'https://script.google.com/macros/s/AKfycbwlXklGk2skVhaG-Qw7masPcapFrNkgpmn8ycvDzNuWLTpWQB1346MkSvh9tYquaBqing/exec';
+            $params = [
+                'action' => 'resumoCotacoesPorDia',
+                'mes' => $mes,
+                'ano' => $ano,
+            ];
+
+            $response = Http::get($url, $params);
+
+            if (!$response->successful()) {
+                return response()->json(['error' => 'Erro ao acessar planilha'], 500);
+            }
+
+            // Atualiza o cache
+            $cacheKey = "cotacoes_google_mes_{$ano}_{$mes}";
+            Cache::put($cacheKey, $response->json(), now()->addMinutes(15)); // ou proximaRenovacao()
+
+            return response()->json($response->json());
+        });
     });
 });
