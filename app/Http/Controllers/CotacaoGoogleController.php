@@ -38,25 +38,58 @@ class CotacaoGoogleController extends Controller
         $ano = $request->query('ano');
         $dia = $request->query('dia');
 
-        if (!$mes || !$ano || !$dia) {
-            return response()->json(['error' => 'Parâmetros mes, ano e dia são obrigatórios'], 400);
+        if (!$mes || !$ano) {
+            return response()->json(['error' => 'Parâmetros mes e ano são obrigatórios'], 400);
         }
 
-        $cacheKey = "cotacoes_google_dia_{$ano}_{$mes}_{$dia}";
         $expire = $this->proximaRenovacao();
-        $cached = Cache::remember($cacheKey, $expire, function () use ($mes, $ano, $dia) {
-            $url = 'https://script.google.com/macros/s/AKfycbwlXklGk2skVhaG-Qw7masPcapFrNkgpmn8ycvDzNuWLTpWQB1346MkSvh9tYquaBqing/exec';
-            $data = sprintf('%d/%d/%d', $dia, $mes, $ano);
-            $params = [
-                'action' => 'resumoCotacoes',
-                'data' => $data,
-                'mes' => $mes,
-                'ano' => $ano,
-            ];
 
-            $response = Http::get($url, $params);
-            return $response->successful() ? $response->json() : null;
-        });
+        // 📅 Modo diário
+        if ($dia) {
+            $cacheKey = "cotacoes_google_dia_{$ano}_{$mes}_{$dia}";
+
+            $cached = Cache::remember($cacheKey, $expire, function () use ($mes, $ano, $dia) {
+                $url = 'https://script.google.com/macros/s/AKfycbwlXklGk2skVhaG-Qw7masPcapFrNkgpmn8ycvDzNuWLTpWQB1346MkSvh9tYquaBqing/exec';
+                $data = sprintf('%d/%d/%d', $dia, $mes, $ano);
+                $params = [
+                    'action' => 'resumoCotacoes',
+                    'data' => $data,
+                    'mes' => $mes,
+                    'ano' => $ano,
+                ];
+
+                $response = Http::get($url, $params);
+                return $response->successful() ? $response->json() : null;
+            });
+
+            if (!$cached) {
+                return response()->json(['error' => 'Erro ao acessar planilha'], 500);
+            }
+
+            return response()->json($cached);
+        }
+
+        // 📆 Modo mensal
+    $cacheKey = "cotacoes_google_mes_total_{$ano}_{$mes}";
+    $cached = Cache::remember($cacheKey, $expire, function () use ($mes, $ano) {
+        $url = 'https://script.google.com/macros/s/AKfycbwlXklGk2skVhaG-Qw7masPcapFrNkgpmn8ycvDzNuWLTpWQB1346MkSvh9tYquaBqing/exec';
+        $params = [
+            'action' => 'resumoCotacoesPorDia',
+            'mes' => $mes,
+            'ano' => $ano,
+        ];
+
+        $response = Http::get($url, $params);
+        if (!$response->successful()) return null;
+
+        $dados = $response->json(); // array de { dia, total }
+        $soma = collect($dados)->sum('total');
+
+        return [
+            'totalDia' => 0, // ou null
+            'totalMes' => $soma
+        ];
+    });
 
         if (!$cached) {
             return response()->json(['error' => 'Erro ao acessar planilha'], 500);
@@ -64,6 +97,7 @@ class CotacaoGoogleController extends Controller
 
         return response()->json($cached);
     }
+
 
 
     public function porDia(Request $request)
@@ -94,6 +128,22 @@ class CotacaoGoogleController extends Controller
         }
 
         return response()->json($cached);
+    }
+
+    public function forcarAtualizacaoResumo(Request $request)
+    {
+        $mes = $request->query('mes');
+        $ano = $request->query('ano');
+        $dia = $request->query('dia');
+
+        if (!$mes || !$ano || !$dia) {
+            return response()->json(['error' => 'Parâmetros obrigatórios'], 400);
+        }
+
+        $cacheKey = "cotacoes_google_dia_{$ano}_{$mes}_{$dia}";
+        Cache::forget($cacheKey);
+
+        return response()->json(['status' => 'cache apagado']);
     }
 
 

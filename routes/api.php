@@ -89,5 +89,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
             return response()->json($response->json());
         });
+
+        Route::get('/cotacoes-google/forcar-resumo', [CotacaoGoogleController::class, 'forcarAtualizacaoResumo']);
+        Route::get('/dashboard/completo', [DashboardController::class, 'completo']);
     });
 });
