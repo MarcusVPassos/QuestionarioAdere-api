@@ -15,50 +15,45 @@ class QuestionarioController extends Controller
 
 public function index(Request $request)
 {
-    $cacheKey = $this->gerarCacheKey($request);
+    $query = Questionario::with('documentos')->orderByDesc('created_at');
 
-    return Cache::remember($cacheKey, now()->addMinutes(2), function () use ($request) {
-        $query = Questionario::with('documentos')->orderByDesc('created_at');
+    if ($request->boolean('so_user') && !$request->filled('status')) {
+        $query->whereIn('status', ['aprovado', 'negado']);
+    }
 
-        if ($request->boolean('so_user') && !$request->filled('status')) {
-            $query->whereIn('status', ['aprovado', 'negado']);
-        }
+    if ($request->filled('status')) {
+        $query->where('status', $request->status);
+    }
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
+    if ($request->filled('tipo')) {
+        $query->where('tipo', $request->tipo);
+    }
 
-        if ($request->filled('tipo')) {
-            $query->where('tipo', $request->tipo);
-        }
+    if ($request->filled('ano')) {
+        $query->whereYear('created_at', $request->ano);
+    }
 
-        if ($request->filled('ano')) {
-            $query->whereYear('created_at', $request->ano);
-        }
+    if ($request->filled('mes')) {
+        $query->whereMonth('created_at', $request->mes);
+    }
 
-        if ($request->filled('mes')) {
-            $query->whereMonth('created_at', $request->mes);
-        }
+    if ($request->filled('nome')) {
+        $query->where(function ($q) use ($request) {
+            $q->where('dados->nome', 'like', '%' . $request->nome . '%')
+                ->orWhere('dados->razao', 'like', '%' . $request->nome . '%');
+        });
+    }
 
-        if ($request->filled('nome')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('dados->nome', 'like', '%' . $request->nome . '%')
-                    ->orWhere('dados->razao', 'like', '%' . $request->nome . '%');
-            });
-        }
+    if ($request->filled('protocolo')) {
+        $query->where('id', $request->protocolo);
+    }
 
-        if ($request->filled('protocolo')) {
-            $query->where('id', $request->protocolo);
-        }
+    if (!$request->filled('status')) {
+        $query->where('status', '!=', 'correcao');
+    }
 
-        if (!$request->filled('status')) {
-            $query->where('status', '!=', 'correcao');
-        }
-
-        return $query->paginate(10);
-    });
+    return $query->paginate(10);
 }
-
 
     public function store(Request $request)
     {

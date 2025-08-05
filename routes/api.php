@@ -61,7 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index']);
         Route::get('/dashboard/disponiveis', [DashboardController::class, 'disponiveis']);
 
-            // ✅ ROTA PARA FORÇAR ATUALIZAÇÃO DAS COTAÇÕES (manualmente)
+        // ✅ ROTA PARA FORÇAR ATUALIZAÇÃO DAS COTAÇÕES (manualmente)
         Route::get('/cotacoes-google/forcar', function (Request $request) {
             $mes = $request->query('mes');
             $ano = $request->query('ano');

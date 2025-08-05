@@ -79,7 +79,7 @@ class CotacaoGoogleController extends Controller
             'ano' => $ano,
         ];
 
-        $response = Http::get($url, $params);
+        $response = Http::timeout(10)->get($url, $params);
         if (!$response->successful()) return null;
 
         $dados = $response->json(); // array de { dia, total }
@@ -137,13 +137,37 @@ class CotacaoGoogleController extends Controller
         $dia = $request->query('dia');
 
         if (!$mes || !$ano || !$dia) {
-            return response()->json(['error' => 'Parâmetros obrigatórios'], 400);
+            return response()->json(['error' => 'Parâmetros obrigatórios: dia, mes e ano'], 400);
         }
 
-        $cacheKey = "cotacoes_google_dia_{$ano}_{$mes}_{$dia}";
-        Cache::forget($cacheKey);
+        // 🔥 Chaves que serão limpas
+        $keysApagadas = [];
 
-        return response()->json(['status' => 'cache apagado']);
+        // Cache diário
+        $dailyKey = "cotacoes_google_dia_{$ano}_{$mes}_{$dia}";
+        if (Cache::has($dailyKey)) {
+            Cache::forget($dailyKey);
+            $keysApagadas[] = $dailyKey;
+        }
+
+        // Cache mensal total (soma)
+        $monthlyTotalKey = "cotacoes_google_mes_total_{$ano}_{$mes}";
+        if (Cache::has($monthlyTotalKey)) {
+            Cache::forget($monthlyTotalKey);
+            $keysApagadas[] = $monthlyTotalKey;
+        }
+
+        // Cache mensal por dia
+        $monthlyPerDayKey = "cotacoes_google_mes_{$ano}_{$mes}";
+        if (Cache::has($monthlyPerDayKey)) {
+            Cache::forget($monthlyPerDayKey);
+            $keysApagadas[] = $monthlyPerDayKey;
+        }
+
+        return response()->json([
+            'status' => 'cache apagado',
+            'chaves' => $keysApagadas
+        ]);
     }
 
 
