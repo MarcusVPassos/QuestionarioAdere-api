@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\RoleUsuarioAtualizada;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -40,6 +41,8 @@ class UserController extends Controller
         $user = User::findOrFail($id);
         $user->role = $request->role;
         $user->save();
+
+        event(new RoleUsuarioAtualizada($user));
 
         return response()->json(['message' => 'Poder atualizado']);
     }
