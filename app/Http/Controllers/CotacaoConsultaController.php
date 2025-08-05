@@ -18,6 +18,18 @@ class CotacaoConsultaController extends Controller
             return response()->json(['error' => 'Informe mes e ano'], 400);
         }
 
+        // ✅ Importa caso ainda não existam dados no banco
+        $existe = CotacaoGoogle::whereMonth('data', $mes)
+            ->whereYear('data', $ano)
+            ->exists();
+
+        if (!$existe) {
+            app(\App\Http\Controllers\CotacaoImportadorController::class)->importar(new Request([
+                'mes' => $mes,
+                'ano' => $ano
+            ]));
+        }
+
         $dados = CotacaoGoogle::whereMonth('data', $mes)
             ->whereYear('data', $ano)
             ->orderBy('data')
@@ -30,6 +42,7 @@ class CotacaoConsultaController extends Controller
         return response()->json($dados);
     }
 
+
     // 🔹 Retorna apenas o total do mês
     public function resumo(Request $request)
     {
@@ -38,6 +51,18 @@ class CotacaoConsultaController extends Controller
 
         if (!$mes || !$ano) {
             return response()->json(['error' => 'Informe mes e ano'], 400);
+        }
+
+        // ✅ Importa caso ainda não existam dados no banco
+        $existe = CotacaoGoogle::whereMonth('data', $mes)
+            ->whereYear('data', $ano)
+            ->exists();
+
+        if (!$existe) {
+            app(\App\Http\Controllers\CotacaoImportadorController::class)->importar(new Request([
+                'mes' => $mes,
+                'ano' => $ano
+            ]));
         }
 
         $totalMes = CotacaoGoogle::whereMonth('data', $mes)
@@ -49,4 +74,5 @@ class CotacaoConsultaController extends Controller
             'totalMes' => $totalMes,
         ]);
     }
+
 }

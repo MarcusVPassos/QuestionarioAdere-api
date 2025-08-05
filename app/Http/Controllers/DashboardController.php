@@ -132,6 +132,19 @@ class DashboardController extends Controller
         $mes = (int) $request->input('mes', now()->month);
         $dia = $request->input('dia');
 
+        // ✅ Verifica se já tem cotações para o mês
+        $temCotacoes = \App\Models\CotacaoGoogle::whereYear('data', $ano)
+            ->whereMonth('data', $mes)
+            ->exists();
+
+        // ⚠️ Se não tiver, importa via controller
+        if (!$temCotacoes) {
+            app(\App\Http\Controllers\CotacaoImportadorController::class)->importar(new Request([
+                'mes' => $mes,
+                'ano' => $ano
+            ]));
+        }
+
         $cacheKey = "dashboard:completo:$ano-$mes-" . ($dia ?? 'todos');
 
         return Cache::remember($cacheKey, now()->addSeconds(120), function () use ($ano, $mes, $dia) {
@@ -143,7 +156,7 @@ class DashboardController extends Controller
             $dashboardResponse = app()->handle($dashboardReq);
             $dashboardData = json_decode($dashboardResponse->getContent(), true);
 
-            $resumoReq = Request::create('/api/cotacoes-google', 'GET', [
+            $resumoReq = Request::create('/api/cotacoes', 'GET', [
                 'ano' => $ano,
                 'mes' => $mes,
                 'dia' => $dia
@@ -151,7 +164,7 @@ class DashboardController extends Controller
             $resumoResponse = app()->handle($resumoReq);
             $resumoData = json_decode($resumoResponse->getContent(), true);
 
-            $porDiaReq = Request::create('/api/cotacoes-google/por-dia', 'GET', [
+            $porDiaReq = Request::create('/api/cotacoes/por-dia', 'GET', [
                 'ano' => $ano,
                 'mes' => $mes
             ]);
@@ -165,4 +178,5 @@ class DashboardController extends Controller
             ];
         });
     }
+
 }
