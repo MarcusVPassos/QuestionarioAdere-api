@@ -6,22 +6,24 @@ use App\Events\NovoQuestionarioCriado;
 use Illuminate\Http\Request;
 use App\Models\Questionario;
 use App\Models\Documento;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 
 class QuestionarioController extends Controller
 {
 
-    public function index(Request $request)
-    {
+public function index(Request $request)
+{
+    $cacheKey = $this->gerarCacheKey($request);
+
+    return Cache::remember($cacheKey, now()->addMinutes(2), function () use ($request) {
         $query = Questionario::with('documentos')->orderByDesc('created_at');
 
-        // Filtro de visibilidade por tipo de usuário
         if ($request->boolean('so_user') && !$request->filled('status')) {
             $query->whereIn('status', ['aprovado', 'negado']);
         }
 
-        // Filtros
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -41,7 +43,7 @@ class QuestionarioController extends Controller
         if ($request->filled('nome')) {
             $query->where(function ($q) use ($request) {
                 $q->where('dados->nome', 'like', '%' . $request->nome . '%')
-                ->orWhere('dados->razao', 'like', '%' . $request->nome . '%');
+                    ->orWhere('dados->razao', 'like', '%' . $request->nome . '%');
             });
         }
 
@@ -54,7 +56,8 @@ class QuestionarioController extends Controller
         }
 
         return $query->paginate(10);
-    }
+    });
+}
 
 
     public function store(Request $request)
@@ -94,6 +97,7 @@ class QuestionarioController extends Controller
         $questionario->load('documentos');      // carrega a coleção de documentos
 
         event(new NovoQuestionarioCriado($questionario));
+        Cache::flush();
 
         return response()->json([
             'message' => 'Questionário enviado com sucesso',
@@ -145,6 +149,7 @@ class QuestionarioController extends Controller
 
         $questionario->save();
         event(new NovoQuestionarioCriado($questionario));
+        Cache::flush();
 
         return response()->json([
             'message' => 'Status atualizado com sucesso.',
@@ -208,6 +213,7 @@ class QuestionarioController extends Controller
 
         $questionario->refresh()->load('documentos'); // carrega dados atualizados + documentos
         event(new NovoQuestionarioCriado($questionario));
+        Cache::flush();
 
         return response()->json([
             'message' => 'Questionário atualizado com sucesso.',
@@ -224,5 +230,19 @@ class QuestionarioController extends Controller
             ->get();
     }
 
+    private function gerarCacheKey(Request $request): string
+    {
+        $filtros = [
+            'status' => $request->input('status'),
+            'tipo' => $request->input('tipo'),
+            'ano' => $request->input('ano'),
+            'mes' => $request->input('mes'),
+            'nome' => $request->input('nome'),
+            'protocolo' => $request->input('protocolo'),
+            'so_user' => $request->input('so_user'),
+            'pagina' => $request->input('page', 1),
+        ];
 
+        return 'questionarios:' . md5(json_encode($filtros));
+    }
 }
