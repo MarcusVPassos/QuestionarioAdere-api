@@ -186,4 +186,49 @@ class DashboardController extends Controller
         });
     }
 
+    public function porUsuario($id, Request $request)
+    {
+        $ano = (int) $request->input('ano', now()->year);
+        $mes = (int) $request->input('mes', now()->month);
+
+        $query = Questionario::where('user_id', $id)
+            ->whereYear('created_at', $ano)
+            ->whereMonth('created_at', $mes);
+
+        $statusPorTipo = $query->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $vendas = $query->where('status', 'aprovado')->get();
+
+        $tipos = [
+            'diario' => 0,
+            'mensal' => 0,
+            'anual' => 0
+        ];
+
+        foreach ($vendas as $q) {
+            $tempo = strtolower($q->dados['tempo'] ?? '');
+            $tempo = str_replace(['á', 'â', 'ã', 'ç'], ['a', 'a', 'a', 'c'], $tempo);
+
+            if (preg_match('/\b(dia|diar|diario|rent a car|24h)\b/', $tempo)) {
+                $tipos['diario']++;
+            } elseif (preg_match('/\b(mes|mensal|mensalidade|aluguel)\b/', $tempo)) {
+                $tipos['mensal']++;
+            } elseif (preg_match('/\b(ano|anual|assinatura|12 meses)\b/', $tempo)) {
+                $tipos['anual']++;
+            }
+        }
+
+        return response()->json([
+            'status' => [
+                'aprovado' => $statusPorTipo['aprovado'] ?? 0,
+                'pendente' => $statusPorTipo['pendente'] ?? 0,
+                'correcao' => $statusPorTipo['correcao'] ?? 0,
+                'negado' => $statusPorTipo['negado'] ?? 0,
+            ],
+            'vendas_por_tipo' => $tipos
+        ]);
+    }
+
 }
