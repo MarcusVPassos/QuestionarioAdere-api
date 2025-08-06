@@ -15,14 +15,25 @@ class QuestionarioController extends Controller
 
 public function index(Request $request)
 {
+    $user = $request->user();
     $query = Questionario::with(['documentos', 'user'])->orderByDesc('created_at');
 
-    if ($request->boolean('so_user') && !$request->filled('status')) {
-        $query->whereIn('status', ['aprovado', 'negado']);
-    }
-
-    if ($request->filled('status')) {
-        $query->where('status', $request->status);
+    if ($user->role === 'user') {
+        // Usuário comum só vê os próprios com status específico
+        if ($request->input('status') === 'correcao') {
+            $query->where('user_id', $user->id)
+                ->where('status', 'correcao');
+        } else {
+            $query->where('user_id', $user->id)
+                ->whereIn('status', ['aprovado', 'negado']);
+        }
+    } else {
+        // Supervisor e diretoria veem tudo, sem filtro por user_id
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        } else {
+            $query->where('status', '!=', 'correcao'); // exceto se status não for definido
+        }
     }
 
     if ($request->filled('tipo')) {
@@ -40,7 +51,7 @@ public function index(Request $request)
     if ($request->filled('nome')) {
         $query->where(function ($q) use ($request) {
             $q->where('dados->nome', 'like', '%' . $request->nome . '%')
-                ->orWhere('dados->razao', 'like', '%' . $request->nome . '%');
+              ->orWhere('dados->razao', 'like', '%' . $request->nome . '%');
         });
     }
 
@@ -48,12 +59,9 @@ public function index(Request $request)
         $query->where('id', $request->protocolo);
     }
 
-    if (!$request->filled('status')) {
-        $query->where('status', '!=', 'correcao');
-    }
-
     return $query->paginate(10);
 }
+
 
     public function store(Request $request)
     {

@@ -82,14 +82,21 @@ class DashboardController extends Controller
 
         foreach ($vendas as $q) {
             $tempo = strtolower($q->dados['tempo'] ?? '');
-            if (str_contains($tempo, 'dia')) {
+
+            // Remover acentos
+            $tempo = str_replace(['á', 'â', 'ã', 'ç'], ['a', 'a', 'a', 'c'], $tempo);
+
+            // Categorização mais flexível
+            if (preg_match('/\b(dia|diar|diario|rent a car|24h)\b/', $tempo)) {
                 $vendasPorTipo['diario']++;
-            } elseif (str_contains($tempo, 'mes') || str_contains($tempo, 'mensal')) {
+            } elseif (preg_match('/\b(mes|mensal|mensalidade|aluguel)\b/', $tempo)) {
                 $vendasPorTipo['mensal']++;
-            } elseif (str_contains($tempo, 'ano')) {
+            } elseif (preg_match('/\b(ano|anual|assinatura|12 meses)\b/', $tempo)) {
                 $vendasPorTipo['anual']++;
             }
         }
+
+
 
         $diasNoMes = Carbon::createFromDate($ano, $mes, 1)->daysInMonth;
 
