@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('questionarios', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null');
             $table->enum('tipo', ['pf', 'pj']);
             $table->json('dados');
             $table->enum('status', ['pendente', 'aprovado', 'negado', 'correcao'])->default('pendente');

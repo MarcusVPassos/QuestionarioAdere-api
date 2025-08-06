@@ -15,7 +15,7 @@ class QuestionarioController extends Controller
 
 public function index(Request $request)
 {
-    $query = Questionario::with('documentos')->orderByDesc('created_at');
+    $query = Questionario::with(['documentos', 'user'])->orderByDesc('created_at');
 
     if ($request->boolean('so_user') && !$request->filled('status')) {
         $query->whereIn('status', ['aprovado', 'negado']);
@@ -72,6 +72,7 @@ public function index(Request $request)
             'tipo' => $dados['tipo'],
             'dados' => $dados,
             'status' => 'pendente',
+            'user_id' => $request->user()->id,
         ]);
 
         if ($request->hasFile('documentos')) {
