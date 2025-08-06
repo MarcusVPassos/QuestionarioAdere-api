@@ -34,6 +34,13 @@ public function index(Request $request)
         } else {
             $query->where('status', '!=', 'correcao'); // exceto se status não for definido
         }
+
+        // 🔍 Filtro por user_id (apenas para supervisores e diretoria)
+        if ($request->filled('so_user')) {
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->so_user . '%');
+            });
+        }
     }
 
     if ($request->filled('tipo')) {
