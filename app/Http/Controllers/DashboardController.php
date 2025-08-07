@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -191,32 +192,58 @@ class DashboardController extends Controller
         $ano = (int) $request->input('ano', now()->year);
         $mes = (int) $request->input('mes', now()->month);
 
-        $query = Questionario::where('user_id', $id)
+        $baseQuery = Questionario::where('user_id', $id)
             ->whereYear('created_at', $ano)
             ->whereMonth('created_at', $mes);
 
-        $statusPorTipo = $query->selectRaw('status, count(*) as total')
+        // 🔹 Clone da query para status
+        $statusPorTipo = (clone $baseQuery)
+            ->selectRaw('status, count(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $vendas = $query->where('status', 'aprovado')->get();
+        // 🔹 Clone da query para vendas aprovadas
+        $vendas = (clone $baseQuery)
+            ->where('status', 'aprovado')
+            ->get();
 
         $tipos = [
             'diario' => 0,
             'mensal' => 0,
-            'anual' => 0
+            'anual' => 0,
         ];
 
         foreach ($vendas as $q) {
-            $tempo = strtolower($q->dados['tempo'] ?? '');
-            $tempo = str_replace(['á', 'â', 'ã', 'ç'], ['a', 'a', 'a', 'c'], $tempo);
+            $tempo = $q->dados['tempo'] ?? '';
 
-            if (preg_match('/\b(dia|diar|diario|rent a car|24h)\b/', $tempo)) {
+            // 🧼 Normalização completa
+            $tempo = mb_strtolower($tempo); // minúsculo
+            $tempo = strtr($tempo, [
+                'á' => 'a', 'â' => 'a', 'ã' => 'a', 'à' => 'a',
+                'é' => 'e', 'ê' => 'e',
+                'í' => 'i',
+                'ó' => 'o', 'ô' => 'o', 'õ' => 'o',
+                'ú' => 'u',
+                'ç' => 'c'
+            ]);
+            $tempo = trim($tempo); // remove espaços
+
+            if ($tempo === '') {
+                Log::debug("⚠️ Tempo vazio para questionário ID {$q->id} do usuário {$id}");
+                continue;
+            }
+
+            if (str_contains($tempo, 'diario') || str_contains($tempo, 'dia')) {
                 $tipos['diario']++;
-            } elseif (preg_match('/\b(mes|mensal|mensalidade|aluguel)\b/', $tempo)) {
+                Log::debug("✅ Diario detectado — tempo: '{$tempo}' (ID {$q->id})");
+            } elseif (str_contains($tempo, 'mensal') || str_contains($tempo, 'mes')) {
                 $tipos['mensal']++;
-            } elseif (preg_match('/\b(ano|anual|assinatura|12 meses)\b/', $tempo)) {
+                Log::debug("✅ Mensal detectado — tempo: '{$tempo}' (ID {$q->id})");
+            } elseif (str_contains($tempo, 'anual') || str_contains($tempo, 'assinatura') || str_contains($tempo, 'ano')) {
                 $tipos['anual']++;
+                Log::debug("✅ Anual detectado — tempo: '{$tempo}' (ID {$q->id})");
+            } else {
+                Log::debug("❌ Não categorizado — tempo: '{$tempo}' (ID {$q->id})");
             }
         }
 
@@ -225,10 +252,9 @@ class DashboardController extends Controller
                 'aprovado' => $statusPorTipo['aprovado'] ?? 0,
                 'pendente' => $statusPorTipo['pendente'] ?? 0,
                 'correcao' => $statusPorTipo['correcao'] ?? 0,
-                'negado' => $statusPorTipo['negado'] ?? 0,
+                'negado'   => $statusPorTipo['negado'] ?? 0,
             ],
             'vendas_por_tipo' => $tipos
         ]);
     }
-
 }

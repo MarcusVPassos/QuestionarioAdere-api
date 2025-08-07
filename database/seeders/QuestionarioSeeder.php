@@ -11,22 +11,35 @@ class QuestionarioSeeder extends Seeder
 {
     public function run(): void
     {
-        // Gera 5 usuários aleatórios se não existirem
-        $usuarios = User::take(5)->get();
+        // Cria 5 perfis fixos com role
+        $usuarios = collect([
+            ['name' => 'diretoria', 'role' => 'diretoria'],
+            ['name' => 'supervisor', 'role' => 'supervisor'],
+            ['name' => 'vendedor1', 'role' => 'user'],
+            ['name' => 'vendedor2', 'role' => 'user'],
+            ['name' => 'vendedor3', 'role' => 'user'],
+        ])->map(fn($u) => User::firstOrCreate(
+            ['name' => $u['name']],
+            ['password' => bcrypt('12345678'), 'role' => $u['role']]
+        ));
 
-        if ($usuarios->count() < 5) {
-            $usuarios = User::factory()
-                ->count(5)
-                ->sequence(
-                    ['name' => 'diretoria', 'role' => 'diretoria'],
-                    ['name' => 'supervisor', 'role' => 'supervisor'],
-                    ['name' => 'vendedor1', 'role' => 'user'],
-                    ['name' => 'vendedor2', 'role' => 'user'],
-                    ['name' => 'vendedor3', 'role' => 'user'],
-                )
-                ->create()
-                ->merge($usuarios); // inclui os já existentes (se houver)
-        }
+        $tempos = [
+            'Diário',
+            'Mensal',
+            'Anual',
+            'Assinatura Anual',
+            'plano mensal',
+            'plano diário',
+            'assinatura',
+            '1 mês',
+            '1 dia',
+            '1 ano',
+            'mensalidade',
+            'assinatura mensal',
+            'mensal com desconto',
+            'diário promocional',
+            'plano anual',
+        ];
 
         $startDate = Carbon::create(2025, 5, 1);
         $total = 100;
@@ -46,11 +59,12 @@ class QuestionarioSeeder extends Seeder
                     'telefone' => fake()->phoneNumber(),
                     'endereco' => fake()->address(),
                     'observacoes' => fake()->sentence(),
+                    'tempo' => fake()->randomElement($tempos),
                 ],
                 'status' => fake()->randomElement(['pendente', 'aprovado', 'negado', 'correcao']),
                 'motivo_negativa' => fake()->optional()->sentence(),
                 'comentario_correcao' => fake()->optional()->sentence(),
-                'user_id' => $usuarios->random()->id, // usuário aleatório
+                'user_id' => $usuarios->random()->id,
                 'created_at' => $createdAt,
                 'updated_at' => $createdAt,
             ]);
