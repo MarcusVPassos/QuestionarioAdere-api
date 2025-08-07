@@ -51,6 +51,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rotas exclusivas para diretoria
     Route::middleware('role:diretoria')->group(function () {
+        Route::patch('/usuarios/{id}/inativar', [UserController::class, 'inativar'])->middleware('auth:sanctum');
 
         Route::get('/dashboard', [DashboardController::class, 'index']);
         Route::get('/dashboard/disponiveis', [DashboardController::class, 'disponiveis']);

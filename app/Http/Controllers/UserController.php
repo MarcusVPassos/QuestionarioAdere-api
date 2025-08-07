@@ -12,7 +12,7 @@ class UserController extends Controller
 {
     public function index()
     {
-        return User::select('id', 'name', 'role', 'created_at')->get();
+        return User::select('id', 'name', 'role', 'ativo', 'created_at')->get();
     }
 
     public function store(Request $request)
@@ -58,6 +58,15 @@ class UserController extends Controller
         $user->save();
 
         return response()->json(['message' => 'Senha atualizada com sucesso']);
+    }
+
+    public function inativar($id)
+    {
+        $user = User::findOrFail($id);
+        $user->ativo = false;
+        $user->save();
+
+        return response()->json(['message' => 'Usuário inativado com sucesso']);
     }
 
     public function destroy($id)

@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('name')->unique(); // login via nome
             $table->string('password');
             $table->string('role')->default('user'); // role: user ou supervisor
+            $table->boolean('ativo')->default(true);
             $table->rememberToken();
             $table->timestamps();
         });
