@@ -18,6 +18,9 @@ Route::post('/login', LoginController::class);
         //     return response()->json(['status' => 'evento disparado']);
         // });
 
+        
+        Route::post('/questionarios/preview-comissao', [QuestionarioController::class, 'previewComissao'])->middleware('auth:sanctum');
+
 // Rotas protegidas por Sanctum
 Route::middleware('auth:sanctum')->group(function () {
 

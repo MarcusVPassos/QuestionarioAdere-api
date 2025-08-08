@@ -17,6 +17,14 @@ return new class extends Migration
             $table->enum('tipo', ['pf', 'pj']);
             $table->json('dados');
             $table->enum('status', ['pendente', 'aprovado', 'negado', 'correcao'])->default('pendente');
+            
+            $table->enum('tipo_venda', ['diario','mensal','assinatura'])->nullable();
+            $table->decimal('valor_venda', 12, 2)->nullable();
+            $table->decimal('valor_venda_total', 12, 2)->nullable();
+            $table->decimal('valor_mensalidade', 12, 2)->nullable();
+            $table->decimal('percentual_comissao', 5, 4)->nullable();
+            $table->decimal('valor_comissao_calculado', 12, 2)->nullable();
+            
             $table->text('motivo_negativa')->nullable();
             $table->text('comentario_correcao')->nullable();
             $table->timestamps();

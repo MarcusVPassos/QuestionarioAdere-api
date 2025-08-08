@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Events\NovoQuestionarioCriado;
+use App\Http\Requests\StoreQuestionarioRequest;
+use App\Http\Requests\UpdateQuestionarioRequest;
 use Illuminate\Http\Request;
 use App\Models\Questionario;
 use App\Models\Documento;
+use App\Providers\ComissaoService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
@@ -70,24 +73,32 @@ public function index(Request $request)
 }
 
 
-    public function store(Request $request)
+    public function store(StoreQuestionarioRequest $request)
     {
-        $request->validate([
-            'dados' => 'required|json',
-            'documentos.*' => 'file|max:5120', // máx 5MB por arquivo
-        ]);
-
         $dados = json_decode($request->dados, true);
 
         if (!in_array($dados['tipo'], ['pf', 'pj'])) {
             return response()->json(['message' => 'Tipo inválido'], 422);
         }
 
+        // Cálculo de comissão (fonte da verdade)
+        $calc = ComissaoService::calcular(
+            $request->input('tipo_venda'),
+            $request->float('valor_venda'),
+           $request->float('valor_mensalidade')
+        );
+
         $questionario = Questionario::create([
             'tipo' => $dados['tipo'],
             'dados' => $dados,
             'status' => 'pendente',
             'user_id' => $request->user()->id,
+            'tipo_venda' => $request->input('tipo_venda'),
+            'valor_venda' => $request->input('valor_venda'),
+            'valor_venda_total' => $request->input('valor_venda_total'),
+            'valor_mensalidade' => $request->input('valor_mensalidade'),
+            'percentual_comissao' => $calc['percentual'],
+            'valor_comissao_calculado' => $calc['valor'],
         ]);
 
         if ($request->hasFile('documentos')) {
@@ -177,26 +188,14 @@ public function index(Request $request)
             ->get();
     }
 
-    public function update(Request $request, $id)
+    public function update(UpdateQuestionarioRequest $request, $id)
     {
-        $dadosRaw = $request->input('dados');
-
-        if (!$dadosRaw) {
-            return response()->json(['message' => 'O campo "dados" é obrigatório.'], 422);
-        }
-
-        $dados = json_decode($dadosRaw, true);
+        $dados = $request->input('dados');
 
         if (json_last_error() !== JSON_ERROR_NONE || !is_array($dados)) {
             return response()->json(['message' => 'O campo "dados" deve ser um JSON válido.'], 422);
         }
 
-        $request->merge(['dados' => $dados]);
-
-        $request->validate([
-            'dados' => 'required|array',
-            'documentos.*' => 'file|max:5120',
-        ]);
 
         if (!in_array($dados['tipo'] ?? '', ['pf', 'pj'])) {
             return response()->json(['message' => 'Tipo inválido'], 422);
@@ -207,6 +206,21 @@ public function index(Request $request)
         $questionario->status = 'pendente';
         $questionario->comentario_correcao = null;
         $questionario->motivo_negativa = null;
+
+        // Recalcular comissão
+        $calc = ComissaoService::calcular(
+            $request->input('tipo_venda'),
+            $request->float('valor_venda'),
+            $request->float('valor_mensalidade')
+        );
+
+
+        $questionario->tipo_venda = $request->input('tipo_venda', $questionario->tipo_venda);
+        $questionario->valor_venda = $request->input('valor_venda', $questionario->valor_venda);
+        $questionario->valor_venda_total = $request->input('valor_venda_total', $questionario->valor_venda_total);
+        $questionario->valor_mensalidade = $request->input('valor_mensalidade', $questionario->valor_mensalidade);
+        $questionario->percentual_comissao = $calc['percentual'];
+        $questionario->valor_comissao_calculado = $calc['valor'];
         $questionario->save();
 
         if ($request->hasFile('documentos')) {
@@ -230,6 +244,24 @@ public function index(Request $request)
             'message' => 'Questionário atualizado com sucesso.',
             'status' => 'pendente',
         ]);
+    }
+
+    public function previewComissao(Request $request)
+    {
+        $request->validate([
+            'tipo_venda' => 'required|in:diario,mensal,assinatura',
+            'valor_venda' => 'nullable|numeric|min:0',
+            'valor_venda_total' => 'nullable|numeric|min:0',
+            'valor_mensalidade' => 'nullable|numeric|min:0'
+        ]);
+
+        $calc = ComissaoService::calcular(
+            $request->input('tipo_venda'),
+            $request->float('valor_venda'),
+            $request->float('valor_mensalidade')
+        );
+
+        return response()->json($calc);
     }
 
     public function anosEMesesDisponiveis()

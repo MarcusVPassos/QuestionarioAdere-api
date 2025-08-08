@@ -75,26 +75,17 @@ class DashboardController extends Controller
             ->whereMonth('created_at', $mes)
             ->get();
 
-        $vendasPorTipo = [
-            'diario' => 0,
-            'mensal' => 0,
-            'anual' => 0,
-        ];
+        $vendasPorTipo = ['diario'=>0,'mensal'=>0,'assinatura'=>0];
+        $comissaoPorTipo = ['diario'=>0.0,'mensal'=>0.0,'assinatura'=>0.0];
+        $comissaoTotal = 0.0;
 
         foreach ($vendas as $q) {
-            $tempo = strtolower($q->dados['tempo'] ?? '');
-
-            // Remover acentos
-            $tempo = str_replace(['á', 'â', 'ã', 'ç'], ['a', 'a', 'a', 'c'], $tempo);
-
-            // Categorização mais flexível
-            if (preg_match('/\b(dia|diar|diario|rent a car|24h)\b/', $tempo)) {
-                $vendasPorTipo['diario']++;
-            } elseif (preg_match('/\b(mes|mensal|mensalidade|aluguel)\b/', $tempo)) {
-                $vendasPorTipo['mensal']++;
-            } elseif (preg_match('/\b(ano|anual|assinatura|12 meses)\b/', $tempo)) {
-                $vendasPorTipo['anual']++;
-            }
+            $tipo = $q->tipo_venda ?? null;
+            if (!$tipo) continue;
+            if (!isset($vendasPorTipo[$tipo])) continue;
+            $vendasPorTipo[$tipo]++;
+            $comissaoPorTipo[$tipo] += (float) ($q->valor_comissao_calculado ?? 0);
+            $comissaoTotal += (float) ($q->valor_comissao_calculado ?? 0);
         }
 
 
@@ -118,7 +109,9 @@ class DashboardController extends Controller
                 'correcao'  => $totalCorrecao,
                 'cotacoes'  => 0,
                 'vendas_por_tipo' => $vendasPorTipo,
-                'aproveitamento'  => 0
+                'aproveitamento'  => 0,
+                'comissao_total' => round($comissaoTotal, 2),
+                'comissao_por_tipo' => array_map(fn($v)=>round($v,2), $comissaoPorTipo),
             ],
             'diario' => $diasDoMes
         ];
@@ -187,74 +180,50 @@ class DashboardController extends Controller
         });
     }
 
-    public function porUsuario($id, Request $request)
-    {
-        $ano = (int) $request->input('ano', now()->year);
-        $mes = (int) $request->input('mes', now()->month);
+public function porUsuario($id, Request $request)
+{
+    $ano = (int) $request->input('ano', now()->year);
+    $mes = (int) $request->input('mes', now()->month);
 
-        $baseQuery = Questionario::where('user_id', $id)
-            ->whereYear('created_at', $ano)
-            ->whereMonth('created_at', $mes);
+    $baseQuery = Questionario::where('user_id', $id)
+        ->whereYear('created_at', $ano)
+        ->whereMonth('created_at', $mes);
 
-        // 🔹 Clone da query para status
-        $statusPorTipo = (clone $baseQuery)
-            ->selectRaw('status, count(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
+    // Status
+    $statusPorTipo = (clone $baseQuery)
+        ->selectRaw('status, count(*) as total')
+        ->groupBy('status')
+        ->pluck('total', 'status');
 
-        // 🔹 Clone da query para vendas aprovadas
-        $vendas = (clone $baseQuery)
-            ->where('status', 'aprovado')
-            ->get();
+    // Apenas aprovados para vendas e comissão
+    $vendasAprovadas = (clone $baseQuery)
+        ->where('status', 'aprovado')
+        ->get(['tipo_venda','valor_comissao_calculado']);
 
-        $tipos = [
-            'diario' => 0,
-            'mensal' => 0,
-            'anual' => 0,
-        ];
+    $vendasPorTipo = ['diario'=>0,'mensal'=>0,'assinatura'=>0];
+    $comissaoPorTipo = ['diario'=>0.0,'mensal'=>0.0,'assinatura'=>0.0];
+    $comissaoTotal = 0.0;
 
-        foreach ($vendas as $q) {
-            $tempo = $q->dados['tempo'] ?? '';
-
-            // 🧼 Normalização completa
-            $tempo = mb_strtolower($tempo); // minúsculo
-            $tempo = strtr($tempo, [
-                'á' => 'a', 'â' => 'a', 'ã' => 'a', 'à' => 'a',
-                'é' => 'e', 'ê' => 'e',
-                'í' => 'i',
-                'ó' => 'o', 'ô' => 'o', 'õ' => 'o',
-                'ú' => 'u',
-                'ç' => 'c'
-            ]);
-            $tempo = trim($tempo); // remove espaços
-
-            if ($tempo === '') {
-                Log::debug("⚠️ Tempo vazio para questionário ID {$q->id} do usuário {$id}");
-                continue;
-            }
-
-            if (str_contains($tempo, 'diario') || str_contains($tempo, 'dia')) {
-                $tipos['diario']++;
-                Log::debug("✅ Diario detectado — tempo: '{$tempo}' (ID {$q->id})");
-            } elseif (str_contains($tempo, 'mensal') || str_contains($tempo, 'mes')) {
-                $tipos['mensal']++;
-                Log::debug("✅ Mensal detectado — tempo: '{$tempo}' (ID {$q->id})");
-            } elseif (str_contains($tempo, 'anual') || str_contains($tempo, 'assinatura') || str_contains($tempo, 'ano')) {
-                $tipos['anual']++;
-                Log::debug("✅ Anual detectado — tempo: '{$tempo}' (ID {$q->id})");
-            } else {
-                Log::debug("❌ Não categorizado — tempo: '{$tempo}' (ID {$q->id})");
-            }
-        }
-
-        return response()->json([
-            'status' => [
-                'aprovado' => $statusPorTipo['aprovado'] ?? 0,
-                'pendente' => $statusPorTipo['pendente'] ?? 0,
-                'correcao' => $statusPorTipo['correcao'] ?? 0,
-                'negado'   => $statusPorTipo['negado'] ?? 0,
-            ],
-            'vendas_por_tipo' => $tipos
-        ]);
+    foreach ($vendasAprovadas as $v) {
+        $tipo = $v->tipo_venda ?? null;
+        if (!isset($vendasPorTipo[$tipo])) continue;
+        $vendasPorTipo[$tipo]++;
+        $valor = (float) ($v->valor_comissao_calculado ?? 0);
+        $comissaoPorTipo[$tipo] += $valor;
+        $comissaoTotal += $valor;
     }
+
+    return response()->json([
+        'status' => [
+            'aprovado' => $statusPorTipo['aprovado'] ?? 0,
+            'pendente' => $statusPorTipo['pendente'] ?? 0,
+            'correcao' => $statusPorTipo['correcao'] ?? 0,
+            'negado'   => $statusPorTipo['negado'] ?? 0,
+        ],
+        'vendas_por_tipo' => $vendasPorTipo,
+        'comissao_total' => round($comissaoTotal, 2),
+        'comissao_por_tipo' => array_map(fn($v)=>round($v,2), $comissaoPorTipo),
+    ]);
+}
+
 }
