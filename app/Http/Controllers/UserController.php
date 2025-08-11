@@ -10,23 +10,30 @@ use Illuminate\Support\Facades\Password;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return User::select('id', 'name', 'role', 'ativo', 'created_at')->get();
+        $incluir = (bool) $request->boolean('incluir_inativos', false);
+
+        return User::query()
+            ->select('id','name','role','ativo','created_at')
+            ->visiveis($incluir)
+            ->orderBy('name')
+            ->get();
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|unique:users,name',
-            'password' => ['required', 'string', 'min:6'],
+            'password' => ['required','string','min:6'],
             'role' => 'required|in:user,supervisor,diretoria',
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
-            'password' => Hash::make($validated['password']),
+            'password' => $validated['password'], // cast hashed
             'role' => $validated['role'],
+            'ativo' => true,
         ]);
 
         return response()->json($user, 201);
@@ -60,14 +67,33 @@ class UserController extends Controller
         return response()->json(['message' => 'Senha atualizada com sucesso']);
     }
 
-    public function inativar($id)
+    public function inativar(Request $request, $id)
     {
+        $authId = $request->user()?->id ?? null; // se usar Route Model Binding, troque o $request
         $user = User::findOrFail($id);
+
+        if ($authId === $user->id) {
+            return response()->json(['error' => 'Você não pode se inativar'], 403);
+        }
+
         $user->ativo = false;
         $user->save();
 
+        // Revoga tokens ativos do usuário inativado
+        $user->tokens()->delete();
+
         return response()->json(['message' => 'Usuário inativado com sucesso']);
     }
+
+    public function reativar($id)
+    {
+        $user = User::findOrFail($id);
+        $user->ativo = true;
+        $user->save();
+
+        return response()->json(['message' => 'Usuário reativado com sucesso']);
+    }
+
 
     public function destroy($id)
     {

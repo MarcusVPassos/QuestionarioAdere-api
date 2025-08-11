@@ -18,8 +18,13 @@ class LoginController extends Controller
         if (!Auth::attempt($credentials)) {
             return response()->json(['message' => 'Credenciais inválidas'], 401);
         }
+        
 
         $user = Auth::user();
+        
+        if (!$user->ativo) {
+            return response()->json(['message'=>'Usuário inativo'], 403);
+        }
 
         /** @var \App\Models\User $user */ // Add this line
 

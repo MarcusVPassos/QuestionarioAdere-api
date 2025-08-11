@@ -49,7 +49,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/usuarios', [UserController::class, 'store']);
         Route::put('/usuarios/{id}/role', [UserController::class, 'atualizarRole']);
         Route::put('/usuarios/{id}/senha', [UserController::class, 'atualizarSenha']);
-        Route::delete('/usuarios/{id}', [UserController::class, 'destroy']);
+        Route::patch('/usuarios/{id}/inativar', [UserController::class, 'inativar']);
+        Route::patch('/usuarios/{id}/reativar', [UserController::class, 'reativar']);
     });
 
     // Rotas exclusivas para diretoria

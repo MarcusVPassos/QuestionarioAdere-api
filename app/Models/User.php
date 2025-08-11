@@ -46,4 +46,16 @@ class User extends Authenticatable
             'ativo' => 'boolean',
         ];
     }
+
+    /* Escopos */
+    public function scopeAtivos($q) 
+    { 
+        return $q->where('ativo', true); 
+    }
+
+    public function scopeVisiveis($q, $incluirInativos = false) 
+    {
+        return $incluirInativos ? $q : $q->where('ativo', true);
+    }
+    
 }
