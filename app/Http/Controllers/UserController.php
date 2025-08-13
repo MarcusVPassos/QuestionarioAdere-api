@@ -26,7 +26,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|unique:users,name',
             'password' => ['required','string','min:6'],
-            'role' => 'required|in:user,supervisor,diretoria',
+            'role' => 'required|in:user,supervisor,diretoria,recepcao',
         ]);
 
         $user = User::create([
@@ -42,7 +42,7 @@ class UserController extends Controller
     public function atualizarRole(Request $request, $id)
     {
         $request->validate([
-            'role' => 'required|in:user,supervisor,diretoria',
+            'role' => 'required|in:user,supervisor,diretoria,recepcao',
         ]);
 
         $user = User::findOrFail($id);
@@ -104,5 +104,16 @@ class UserController extends Controller
 
         $user->delete();
         return response()->json(['message' => 'Usuário excluído']);
+    }
+
+    public function vendedores(Request $request)
+    {
+        // apenas ativos, role=user
+        return User::query()
+            ->select('id','name')
+            ->where('role', 'user')
+            ->ativos()
+            ->orderBy('name')
+            ->get();
     }
 }

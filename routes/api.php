@@ -4,11 +4,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\CotacaoController;
+use App\Http\Controllers\CotacaoSiteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentoController;
 use App\Http\Controllers\QuestionarioController;
 use App\Http\Controllers\UserController;
 
+
+Route::middleware('throttle:30,1')->group(function () {
+    Route::post('/cotacoes/public', [CotacaoSiteController::class, 'store']);
+});
 
 // Rota pública para login
 Route::post('/login', LoginController::class);
@@ -38,6 +44,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/documentos/{documento}', [DocumentoController::class, 'download']);
     Route::get('/questionarios/anos-meses', [QuestionarioController::class, 'anosEMesesDisponiveis']);
 
+    // --- COTAÇÕES ---
+    // Recepção + gestão + vendedor (index filtra por role no controller)
+    Route::get('/cotacoes', [CotacaoController::class, 'index']);
+
+    // Só recepção/supervisor/diretoria
+    Route::middleware('role:recepcao,supervisor,diretoria')->group(function () {
+        Route::post('/cotacoes/{cotacao}/atribuir', [CotacaoController::class, 'atribuir']);
+        Route::get('/vendedores', [UserController::class, 'vendedores']); 
+    });
+
+    // Vendedor dono OU gestão
+    Route::patch('/cotacoes/{cotacao}/status', [CotacaoController::class, 'atualizarStatus']);
+    Route::post('/cotacoes/{cotacao}/converter', [CotacaoController::class, 'converter']);
+
 
     // Rotas exclusivas para supervisores
     Route::middleware('role:supervisor,diretoria')->group(function () {
@@ -62,7 +82,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/dashboard/completo', [DashboardController::class, 'completo']);
 
-        Route::get('/cotacoes', [\App\Http\Controllers\CotacaoConsultaController::class, 'resumo']);
+        Route::get('/cotacoes/resumo', [\App\Http\Controllers\CotacaoConsultaController::class, 'resumo']);
+
         Route::get('/cotacoes/por-dia', [\App\Http\Controllers\CotacaoConsultaController::class, 'listar']);
 
         Route::get('/dashboard/usuario/{id}', [DashboardController::class, 'porUsuario']);

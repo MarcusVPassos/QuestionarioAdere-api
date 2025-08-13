@@ -15,6 +15,7 @@ class QuestionarioSeeder extends Seeder
         $usuarios = collect([
             ['name' => 'diretoria', 'role' => 'diretoria'],
             ['name' => 'supervisor', 'role' => 'supervisor'],
+            ['name' => 'recepcao', 'role' => 'recepcao'],
             ['name' => 'vendedor1', 'role' => 'user'],
             ['name' => 'vendedor2', 'role' => 'user'],
             ['name' => 'vendedor3', 'role' => 'user'],
