@@ -14,18 +14,36 @@ class CotacaoController extends Controller
 
         $q = Cotacao::query()
             ->with(['vendedor:id,name','recepcionista:id,name','questionario:id,cotacao_id,status'])
-            ->when($u->role === 'user', fn($qb) => $qb->where('vendedor_id', $u->id)) // vendedor vê só as dele
-            ->when($request->filled('status'), fn($qb) => $qb->where('status', $request->status))
-            ->when($request->filled('vendedor_id'), fn($qb) => $qb->where('vendedor_id', $request->vendedor_id))
-            ->when($request->filled('busca'), function($qb) use ($request){
-                $b = '%'.$request->busca.'%';
-                $qb->where(function($w) use($b){
-                    $w->where('nome_razao','like',$b)
-                      ->orWhere('telefone','like',$b)
-                      ->orWhere('email','like',$b);
-                });
-            })
             ->orderByDesc('id');
+
+        // 🔒 Vendedor só vê as suas (não aplica para recepção explícita)
+        if ($u->role === 'user' && !$request->boolean('somente_recepcao')) {
+            $q->where('vendedor_id', $u->id);
+        }
+
+        // 🎯 Modo Recepção: somente "novo" e sem vendedor
+        if ($request->boolean('somente_recepcao')) {
+            $q->whereNull('vendedor_id')
+            ->where('status', 'novo');
+        } else {
+            // Filtros padrão (aplicados apenas quando NÃO é recepção)
+            if ($request->filled('status')) {
+                $q->where('status', $request->string('status')->toString());
+            }
+
+            if ($request->filled('vendedor_id')) {
+                $q->where('vendedor_id', (int) $request->vendedor_id);
+            }
+        }
+
+        if ($request->filled('busca')) {
+            $b = '%'.$request->string('busca')->toString().'%';
+            $q->where(function($w) use ($b){
+                $w->where('nome_razao','like',$b)
+                ->orWhere('telefone','like',$b)
+                ->orWhere('email','like',$b);
+            });
+        }
 
         return $q->paginate(10);
     }

@@ -49,7 +49,7 @@ class SyncCotacaoStatusService
 
             case 'aprovado':
                 $alvoStatus  = 'convertido';
-                $alvoDetalhe = 'Cotação convertida em venda';
+                $alvoDetalhe = 'Convertida em venda';
                 $alvoMotivo  = null;
                 break;
 
