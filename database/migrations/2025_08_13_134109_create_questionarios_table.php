@@ -24,7 +24,7 @@ return new class extends Migration
             $table->decimal('valor_mensalidade', 12, 2)->nullable();
             $table->decimal('percentual_comissao', 5, 4)->nullable();
             $table->decimal('valor_comissao_calculado', 12, 2)->nullable();
-            
+            $table->foreignId('cotacao_id')->nullable()->constrained('cotacoes')->nullOnDelete();
             $table->text('motivo_negativa')->nullable();
             $table->text('comentario_correcao')->nullable();
             $table->timestamps();

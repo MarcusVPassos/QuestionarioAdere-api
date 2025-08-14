@@ -13,7 +13,7 @@ class CotacaoController extends Controller
         $u = $request->user();
 
         $q = Cotacao::query()
-            ->with(['vendedor:id,name','recepcionista:id,name'])
+            ->with(['vendedor:id,name','recepcionista:id,name','questionario:id,cotacao_id,status'])
             ->when($u->role === 'user', fn($qb) => $qb->where('vendedor_id', $u->id)) // vendedor vê só as dele
             ->when($request->filled('status'), fn($qb) => $qb->where('status', $request->status))
             ->when($request->filled('vendedor_id'), fn($qb) => $qb->where('vendedor_id', $request->vendedor_id))
@@ -136,5 +136,22 @@ class CotacaoController extends Controller
             'message' => 'Convertido em questionário',
             'questionario_id' => $questionario->id
         ], 201);
+    }
+
+    public function buscar(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        return \App\Models\Cotacao::query()
+            ->select('id', 'nome_razao', 'status', 'status_detalhe')
+            ->where('status', '!=', 'convertido')
+            ->when($q !== '', function ($w) use ($q) {
+                $w->where(function ($x) use ($q) {
+                    $x->where('nome_razao', 'like', "%{$q}%")
+                    ->orWhere('id', $q);
+                });
+            })
+            ->orderByDesc('id')
+            ->limit(10)
+            ->get();
     }
 }

@@ -23,4 +23,9 @@ class Cotacao extends Model
 
     public function vendedor(): BelongsTo { return $this->belongsTo(User::class, 'vendedor_id'); }
     public function recepcionista(): BelongsTo { return $this->belongsTo(User::class, 'recepcionista_id'); }
+
+    public function questionario()
+    {
+        return $this->hasOne(Questionario::class);
+    }
 }

@@ -41,12 +41,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/questionarios', [QuestionarioController::class, 'index']);
     Route::get('/questionarios/correcao', [QuestionarioController::class, 'emCorrecao']);
     Route::post('/questionarios/{id}/update', [QuestionarioController::class, 'update']);
+    Route::patch('/questionarios/{id}/status', [QuestionarioController::class, 'atualizarStatus']);
     Route::get('/documentos/{documento}', [DocumentoController::class, 'download']);
     Route::get('/questionarios/anos-meses', [QuestionarioController::class, 'anosEMesesDisponiveis']);
 
     // --- COTAÇÕES ---
     // Recepção + gestão + vendedor (index filtra por role no controller)
     Route::get('/cotacoes', [CotacaoController::class, 'index']);
+    Route::get('/cotacoes/buscar', [CotacaoController::class, 'buscar']);
 
     // Só recepção/supervisor/diretoria
     Route::middleware('role:recepcao,supervisor,diretoria')->group(function () {
@@ -57,6 +59,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Vendedor dono OU gestão
     Route::patch('/cotacoes/{cotacao}/status', [CotacaoController::class, 'atualizarStatus']);
     Route::post('/cotacoes/{cotacao}/converter', [CotacaoController::class, 'converter']);
+    Route::patch('/questionarios/{id}/vincular-cotacao', [QuestionarioController::class, 'vincularCotacao']);
+
 
 
     // Rotas exclusivas para supervisores

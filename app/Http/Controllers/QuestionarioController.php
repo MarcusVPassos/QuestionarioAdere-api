@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Events\NovoQuestionarioCriado;
 use App\Http\Requests\StoreQuestionarioRequest;
 use App\Http\Requests\UpdateQuestionarioRequest;
+use App\Models\Cotacao;
 use Illuminate\Http\Request;
 use App\Models\Questionario;
 use App\Models\Documento;
 use App\Providers\ComissaoService;
+use App\Services\SyncCotacaoStatusService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
@@ -75,9 +77,11 @@ public function index(Request $request)
 
     public function store(StoreQuestionarioRequest $request)
     {
-        $dados = json_decode($request->dados, true);
+        // Tudo já foi validado no FormRequest; 'dados' já é array
+        $validated = $request->validated();
+        $dados = $validated['dados'];
 
-        if (!in_array($dados['tipo'], ['pf', 'pj'])) {
+        if (!in_array(($dados['tipo'] ?? null), ['pf', 'pj'])) {
             return response()->json(['message' => 'Tipo inválido'], 422);
         }
 
@@ -85,45 +89,51 @@ public function index(Request $request)
         $calc = ComissaoService::calcular(
             $request->input('tipo_venda'),
             $request->float('valor_venda'),
-           $request->float('valor_mensalidade')
+            $request->float('valor_mensalidade')
         );
 
         $questionario = Questionario::create([
-            'tipo' => $dados['tipo'],
-            'dados' => $dados,
-            'status' => 'pendente',
-            'user_id' => $request->user()->id,
-            'tipo_venda' => $request->input('tipo_venda'),
-            'valor_venda' => $request->input('valor_venda'),
-            'valor_venda_total' => $request->input('valor_venda_total'),
-            'valor_mensalidade' => $request->input('valor_mensalidade'),
-            'percentual_comissao' => $calc['percentual'],
+            'tipo'                     => $dados['tipo'],
+            'dados'                    => $dados,
+            'cotacao_id'               => $validated['cotacao_id'] ?? null,
+            'status'                   => 'pendente',
+            'user_id'                  => $request->user()->id,
+            'tipo_venda'               => $request->input('tipo_venda'),
+            'valor_venda'              => $request->input('valor_venda'),
+            'valor_venda_total'        => $request->input('valor_venda_total'),
+            'valor_mensalidade'        => $request->input('valor_mensalidade'),
+            'percentual_comissao'      => $calc['percentual'],
             'valor_comissao_calculado' => $calc['valor'],
         ]);
 
+        // documentos[] no frontend vira 'documentos' aqui
         if ($request->hasFile('documentos')) {
-            foreach ($request->file('documentos') as $file) {
+            foreach ($request->file('documentos', []) as $file) {
                 $path = $file->store('documentos', 'public');
 
                 Documento::create([
                     'questionario_id' => $questionario->id,
-                    'nome_original' => $file->getClientOriginalName(),
-                    'caminho' => $path,
-                    'mime_type' => $file->getClientMimeType(),
+                    'nome_original'   => $file->getClientOriginalName(),
+                    'caminho'         => $path,
+                    'mime_type'       => $file->getClientMimeType(),
                 ]);
             }
         }
 
-        // 3) Recarrega defaults e a relação
-        $questionario->refresh();               // carrega o default do DB (status = 'pendente')
-        $questionario->load('documentos');      // carrega a coleção de documentos
+        // Converter cotação (se enviada)
+        if (!empty($validated['cotacao_id'])) {
+            // o questionário recém-criado está 'pendente' por padrão (como já está no seu código)
+            SyncCotacaoStatusService::syncFromQuestionario($questionario);
+        }
 
+        $questionario->load(['documentos', 'cotacao']);
         event(new NovoQuestionarioCriado($questionario));
         Cache::flush();
 
         return response()->json([
-            'message' => 'Questionário enviado com sucesso',
-            'protocolo' => $questionario->id,
+            'message'      => 'Questionário enviado com sucesso',
+            'protocolo'    => $questionario->id,
+            'questionario' => $questionario,
         ], 201);
     }
 
@@ -170,6 +180,9 @@ public function index(Request $request)
         }
 
         $questionario->save();
+
+        SyncCotacaoStatusService::syncFromQuestionario($questionario);
+
         event(new NovoQuestionarioCriado($questionario));
         Cache::flush();
 
@@ -190,14 +203,10 @@ public function index(Request $request)
 
     public function update(UpdateQuestionarioRequest $request, $id)
     {
-        $dados = $request->input('dados');
+        $validated = $request->validated();  // 'dados' já é array
+        $dados = $validated['dados'];
 
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($dados)) {
-            return response()->json(['message' => 'O campo "dados" deve ser um JSON válido.'], 422);
-        }
-
-
-        if (!in_array($dados['tipo'] ?? '', ['pf', 'pj'])) {
+        if (!in_array(($dados['tipo'] ?? ''), ['pf', 'pj'])) {
             return response()->json(['message' => 'Tipo inválido'], 422);
         }
 
@@ -214,37 +223,37 @@ public function index(Request $request)
             $request->float('valor_mensalidade')
         );
 
-
-        $questionario->tipo_venda = $request->input('tipo_venda', $questionario->tipo_venda);
-        $questionario->valor_venda = $request->input('valor_venda', $questionario->valor_venda);
-        $questionario->valor_venda_total = $request->input('valor_venda_total', $questionario->valor_venda_total);
-        $questionario->valor_mensalidade = $request->input('valor_mensalidade', $questionario->valor_mensalidade);
-        $questionario->percentual_comissao = $calc['percentual'];
+        $questionario->tipo_venda               = $request->input('tipo_venda', $questionario->tipo_venda);
+        $questionario->valor_venda              = $request->input('valor_venda', $questionario->valor_venda);
+        $questionario->valor_venda_total        = $request->input('valor_venda_total', $questionario->valor_venda_total);
+        $questionario->valor_mensalidade        = $request->input('valor_mensalidade', $questionario->valor_mensalidade);
+        $questionario->percentual_comissao      = $calc['percentual'];
         $questionario->valor_comissao_calculado = $calc['valor'];
         $questionario->save();
 
         if ($request->hasFile('documentos')) {
-            foreach ($request->file('documentos') as $file) {
+            foreach ($request->file('documentos', []) as $file) {
                 $path = $file->store('documentos', 'public');
 
                 Documento::create([
                     'questionario_id' => $questionario->id,
-                    'nome_original' => $file->getClientOriginalName(),
-                    'caminho' => $path,
-                    'mime_type' => $file->getClientMimeType(),
+                    'nome_original'   => $file->getClientOriginalName(),
+                    'caminho'         => $path,
+                    'mime_type'       => $file->getClientMimeType(),
                 ]);
             }
         }
 
-        $questionario->refresh()->load('documentos'); // carrega dados atualizados + documentos
+        $questionario->refresh()->load('documentos');
         event(new NovoQuestionarioCriado($questionario));
         Cache::flush();
 
         return response()->json([
             'message' => 'Questionário atualizado com sucesso.',
-            'status' => 'pendente',
+            'status'  => 'pendente',
         ]);
     }
+
 
     public function previewComissao(Request $request)
     {
@@ -288,4 +297,44 @@ public function index(Request $request)
 
         return 'questionarios:' . md5(json_encode($filtros));
     }
+
+    public function buscarCotacoes(Request $request)
+    {
+        $busca = $request->input('busca', '');
+        
+        return Cotacao::where('status', '!=', 'convertido')
+            ->where(function($q) use ($busca) {
+                $q->where('nome_cliente', 'like', "%{$busca}%")
+                ->orWhere('id', $busca);
+            })
+            ->limit(10)
+            ->get();
+    }
+
+    public function vincularCotacao(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'cotacao_id' => 'required|integer|exists:cotacoes,id',
+        ]);
+
+        $q = \App\Models\Questionario::findOrFail($id);
+
+        $nova = \App\Models\Cotacao::findOrFail($validated['cotacao_id']);
+
+        // regra de negócio: não permitir vincular cotações já convertidas
+        if ($nova->status === 'convertido') {
+            return response()->json([
+                'message' => 'Esta cotação já está convertida e não pode ser vinculada.'
+            ], 422);
+        }
+
+        // vincula ao questionário
+        $q->cotacao_id = $nova->id;
+        $q->save();
+
+        SyncCotacaoStatusService::syncFromQuestionario($q);
+
+        return response()->json($q->load('cotacao'));
+    }
+
 }

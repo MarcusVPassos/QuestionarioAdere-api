@@ -10,7 +10,7 @@ class Questionario extends Model
     use HasFactory;
 
     protected $fillable = ['tipo', 'dados', 'status', 'motivo_negativa', 'user_id', 'tipo_venda', 'valor_venda',
-    'valor_venda_total', 'valor_mensalidade', 'percentual_comissao', 'valor_comissao_calculado', 'comentario_correcao'];
+    'valor_venda_total', 'valor_mensalidade', 'percentual_comissao', 'valor_comissao_calculado', 'comentario_correcao','cotacao_id'];
 
     protected $casts = [
         'dados' => 'array',
@@ -29,5 +29,10 @@ class Questionario extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function cotacao()
+    {
+        return $this->belongsTo(Cotacao::class);
     }
 }
