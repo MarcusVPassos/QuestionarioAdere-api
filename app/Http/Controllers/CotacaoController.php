@@ -162,6 +162,7 @@ class CotacaoController extends Controller
         return \App\Models\Cotacao::query()
             ->select('id', 'nome_razao', 'status', 'status_detalhe')
             ->where('status', '!=', 'convertido')
+            ->whereDoesntHave('questionario')
             ->when($q !== '', function ($w) use ($q) {
                 $w->where(function ($x) use ($q) {
                     $x->where('nome_razao', 'like', "%{$q}%")

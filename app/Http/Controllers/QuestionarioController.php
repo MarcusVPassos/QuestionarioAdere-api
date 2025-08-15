@@ -92,6 +92,15 @@ public function index(Request $request)
             $request->float('valor_mensalidade')
         );
 
+        if (!empty($validated['cotacao_id'])) {
+            $jaVinculada = Questionario::where('cotacao_id', $validated['cotacao_id'])->exists();
+            if ($jaVinculada) {
+                return response()->json([
+                    'message' => 'Esta cotação já está vinculada a um questionário.'
+                ], 422);
+            }
+        }
+
         $questionario = Questionario::create([
             'tipo'                     => $dados['tipo'],
             'dados'                    => $dados,
@@ -301,11 +310,16 @@ public function index(Request $request)
     public function buscarCotacoes(Request $request)
     {
         $busca = $request->input('busca', '');
-        
-        return Cotacao::where('status', '!=', 'convertido')
-            ->where(function($q) use ($busca) {
-                $q->where('nome_cliente', 'like', "%{$busca}%")
-                ->orWhere('id', $busca);
+
+        return \App\Models\Cotacao::query()
+            ->select('id','nome_razao','status','status_detalhe')
+            ->where('status', '!=', 'convertido')
+            ->whereDoesntHave('questionario') 
+            ->when($busca !== '', function ($q) use ($busca) {
+                $q->where(function($w) use ($busca){
+                    $w->where('nome_razao','like',"%{$busca}%")
+                    ->orWhere('id', $busca);
+                });
             })
             ->limit(10)
             ->get();
@@ -317,14 +331,24 @@ public function index(Request $request)
             'cotacao_id' => 'required|integer|exists:cotacoes,id',
         ]);
 
-        $q = \App\Models\Questionario::findOrFail($id);
+        $q = Questionario::findOrFail($id);
 
-        $nova = \App\Models\Cotacao::findOrFail($validated['cotacao_id']);
+        $nova = Cotacao::findOrFail($validated['cotacao_id']);
 
         // regra de negócio: não permitir vincular cotações já convertidas
         if ($nova->status === 'convertido') {
             return response()->json([
                 'message' => 'Esta cotação já está convertida e não pode ser vinculada.'
+            ], 422);
+        }
+
+        // não permitir se já vinculada a QUALQUER questionário diferente deste
+        $jaVinculadaOutro = Questionario::where('cotacao_id', $nova->id)
+            ->where('id', '!=', $q->id)
+            ->exists();
+        if ($jaVinculadaOutro) {
+            return response()->json([
+                'message' => 'Esta cotação já está vinculada a outro questionário.'
             ], 422);
         }
 
