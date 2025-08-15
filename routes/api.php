@@ -88,10 +88,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/dashboard/completo', [DashboardController::class, 'completo']);
 
-        Route::get('/cotacoes/resumo', [\App\Http\Controllers\CotacaoConsultaController::class, 'resumo']);
-
-        Route::get('/cotacoes/por-dia', [\App\Http\Controllers\CotacaoConsultaController::class, 'listar']);
-
         Route::get('/dashboard/usuario/{id}', [DashboardController::class, 'porUsuario']);
     });
 });

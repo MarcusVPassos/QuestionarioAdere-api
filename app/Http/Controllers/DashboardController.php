@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\NovoQuestionarioCriado;
+use App\Models\Cotacao;
 use App\Models\Questionario;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -50,22 +51,25 @@ class DashboardController extends Controller
                     'pendentes' => Questionario::whereDate('created_at', $data)->where('status', 'pendente')->count(),
                     'negados'   => Questionario::whereDate('created_at', $data)->where('status', 'negado')->count(),
                     'correcao'  => Questionario::whereDate('created_at', $data)->where('status', 'correcao')->count(),
-                    'cotacoes'  => 0,
+                    'cotacoes'  => Cotacao::whereDate('created_at', $data)->count(),
                 ],
                 'diario' => [[
                     'data' => $data,
                     'questionarios' => Questionario::whereDate('created_at', $data)->count(),
-                    'cotacoes' => 0
+                    'cotacoes' => Cotacao::whereDate('created_at', $data)->count()
                 ]]
             ];
         }
 
-        // 📊 MENSAL
         $questionariosMensal = Questionario::selectRaw("status, COUNT(*) as total")
             ->whereYear('created_at', $ano)
             ->whereMonth('created_at', $mes)
             ->groupBy('status')
             ->pluck('total', 'status');
+
+        $cotacoesMensal = Cotacao::whereYear('created_at', $ano)
+            ->whereMonth('created_at', $mes)
+            ->count();
 
         $totalAprovados = $questionariosMensal['aprovado'] ?? 0;
         $totalCorrecao = $questionariosMensal['correcao'] ?? 0;
@@ -81,14 +85,11 @@ class DashboardController extends Controller
 
         foreach ($vendas as $q) {
             $tipo = $q->tipo_venda ?? null;
-            if (!$tipo) continue;
             if (!isset($vendasPorTipo[$tipo])) continue;
             $vendasPorTipo[$tipo]++;
             $comissaoPorTipo[$tipo] += (float) ($q->valor_comissao_calculado ?? 0);
             $comissaoTotal += (float) ($q->valor_comissao_calculado ?? 0);
         }
-
-
 
         $diasNoMes = Carbon::createFromDate($ano, $mes, 1)->daysInMonth;
 
@@ -97,7 +98,7 @@ class DashboardController extends Controller
             return [
                 'data' => $data,
                 'questionarios' => Questionario::whereDate('created_at', $data)->count(),
-                'cotacoes' => 0
+                'cotacoes' => Cotacao::whereDate('created_at', $data)->count()
             ];
         });
 
@@ -107,9 +108,9 @@ class DashboardController extends Controller
                 'pendentes' => $questionariosMensal['pendente'] ?? 0,
                 'negados'   => $questionariosMensal['negado'] ?? 0,
                 'correcao'  => $totalCorrecao,
-                'cotacoes'  => 0,
+                'cotacoes'  => $cotacoesMensal,
                 'vendas_por_tipo' => $vendasPorTipo,
-                'aproveitamento'  => 0,
+                'aproveitamento'  => $cotacoesMensal > 0 ? round(($totalAprovados / $cotacoesMensal) * 100) : 0,
                 'comissao_total' => round($comissaoTotal, 2),
                 'comissao_por_tipo' => array_map(fn($v)=>round($v,2), $comissaoPorTipo),
             ],
@@ -132,19 +133,6 @@ class DashboardController extends Controller
         $ano = (int) $request->input('ano', now()->year);
         $mes = (int) $request->input('mes', now()->month);
         $dia = $request->input('dia');
-
-        // ✅ Verifica se já tem cotações para o mês
-        $temCotacoes = \App\Models\CotacaoGoogle::whereYear('data', $ano)
-            ->whereMonth('data', $mes)
-            ->exists();
-
-        // ⚠️ Se não tiver, importa via controller
-        if (!$temCotacoes) {
-            app(\App\Http\Controllers\CotacaoImportadorController::class)->importar(new Request([
-                'mes' => $mes,
-                'ano' => $ano
-            ]));
-        }
 
         $cacheKey = "dashboard:completo:$ano-$mes-" . ($dia ?? 'todos');
 
