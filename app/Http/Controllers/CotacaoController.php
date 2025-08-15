@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\RotacaoAtualizada;
 use App\Models\Cotacao;
 use App\Models\Questionario;
+use App\Services\RotacaoVendedoresService;
 use Illuminate\Http\Request;
 
 class CotacaoController extends Controller
@@ -65,6 +67,9 @@ class CotacaoController extends Controller
         $cotacao->save();
 
         event(new \App\Events\CotacaoAtualizada($cotacao));
+
+        [, , $ultimoNome, $proximoNome] = RotacaoVendedoresService::calcular();
+        event(new RotacaoAtualizada($ultimoNome, $proximoNome));
 
         return response()->json(['message'=>'Atribuída com sucesso']);
     }

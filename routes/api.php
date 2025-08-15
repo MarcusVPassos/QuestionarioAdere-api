@@ -9,6 +9,7 @@ use App\Http\Controllers\CotacaoSiteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentoController;
 use App\Http\Controllers\QuestionarioController;
+use App\Http\Controllers\RotacaoController;
 use App\Http\Controllers\UserController;
 
 
@@ -49,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Recepção + gestão + vendedor (index filtra por role no controller)
     Route::get('/cotacoes', [CotacaoController::class, 'index']);
     Route::get('/cotacoes/buscar', [CotacaoController::class, 'buscar']);
+    Route::get('/rotacao/status', [RotacaoController::class, 'status']);
 
     // Só recepção/supervisor/diretoria
     Route::middleware('role:recepcao,supervisor,diretoria')->group(function () {
