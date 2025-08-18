@@ -8,6 +8,18 @@ class UpdateQuestionarioRequest extends FormRequest
 {
     public function authorize(): bool { return true; }
 
+    protected function prepareForValidation(): void
+    {
+        $raw = $this->input('dados');
+
+        if (is_string($raw)) {
+            $dec = json_decode($raw, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($dec)) {
+                $this->merge(['dados' => $dec]);
+            }
+        }
+    }
+
     public function rules(): array
     {
         $tipoVenda = $this->input('tipo_venda');
@@ -32,7 +44,7 @@ class UpdateQuestionarioRequest extends FormRequest
         };
 
         return array_merge([
-            'dados' => ['required','json'],
+            'dados' => ['required','array'],
             'tipo_venda' => ['nullable','in:diario,mensal,assinatura'],
             'documentos.*' => ['file','max:5120'],
         ], $regrasTipo);
