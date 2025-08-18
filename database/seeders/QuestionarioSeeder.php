@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Cotacao;
 use App\Models\Questionario;
 use App\Models\User;
 use App\Providers\ComissaoService;
@@ -25,63 +26,103 @@ class QuestionarioSeeder extends Seeder
         ));
 
         $tiposVenda = ['diario', 'mensal', 'assinatura'];
-
         $startDate = Carbon::create(2025, 5, 1);
-        $total = 100;
-        $porMes = 25;
+        $endDate = Carbon::create(2025, 8, 31);
 
-        for ($i = 0; $i < $total; $i++) {
-            $mesOffset = intdiv($i, $porMes);
-            $dia = ($i % $porMes) + 1;
-            $createdAt = $startDate->copy()->addMonths($mesOffset)->day(min($dia, 28));
+        $vendedores = $usuarios->where('role', 'user')->values();
+        $recepcionista = $usuarios->where('role', 'recepcao')->first();
 
-            $tipoVenda = fake()->randomElement($tiposVenda);
+        $dias = $startDate->diffInDaysFiltered(fn ($d) => $d->isWeekday(), $endDate);
 
-            // valores simulados
-            if ($tipoVenda === 'diario') {
-                $valorVenda = fake()->randomFloat(2, 80, 300);
-                $valorMensalidade = null;
-                $valorVendaTotal = $valorVenda;
-            } elseif ($tipoVenda === 'mensal') {
-                $valorMensalidade = fake()->randomFloat(2, 300, 1200);
-                $valorVenda = null;
-                $valorVendaTotal = $valorMensalidade;
-            } else { // assinatura
-                $valorMensalidade = fake()->randomFloat(2, 200, 800);
-                $valorVenda = null;
-                $valorVendaTotal = $valorMensalidade * 12;
-            }
+        for ($offset = 0; $offset <= $dias; $offset++) {
+            $data = $startDate->copy()->addDays($offset);
 
-            // cálculo real de comissão
-            $calc = ComissaoService::calcular(
-                $tipoVenda,
-                $valorVenda,
-                $valorMensalidade
-            );
+            // Gera de 2 a 4 cotações no mesmo dia
+            $quantidadeCotacoes = fake()->numberBetween(2, 4);
 
-            Questionario::create([
-                'tipo' => fake()->randomElement(['pf', 'pj']),
-                'dados' => [
-                    'nome' => fake()->name(),
+            for ($j = 0; $j < $quantidadeCotacoes; $j++) {
+                $tipoVenda = fake()->randomElement($tiposVenda);
+
+                if ($tipoVenda === 'diario') {
+                    $valorVenda = fake()->randomFloat(2, 80, 300);
+                    $valorMensalidade = null;
+                    $valorVendaTotal = $valorVenda;
+                } elseif ($tipoVenda === 'mensal') {
+                    $valorMensalidade = fake()->randomFloat(2, 300, 1200);
+                    $valorVenda = null;
+                    $valorVendaTotal = $valorMensalidade;
+                } else {
+                    $valorMensalidade = fake()->randomFloat(2, 200, 800);
+                    $valorVenda = null;
+                    $valorVendaTotal = $valorMensalidade * 12;
+                }
+
+                $calc = ComissaoService::calcular($tipoVenda, $valorVenda, $valorMensalidade);
+
+                // 20% das cotações ficam sem vendedor (em recepção)
+                $vendedor = fake()->boolean(80) ? $vendedores->random() : null;
+
+                // cria a cotação
+                $cotacao = Cotacao::create([
+                    'pessoa' => fake()->randomElement(['pf', 'pj']),
+                    'nome_razao' => fake()->name(),
                     'cpf' => fake()->cpf(false),
-                    'email' => fake()->safeEmail(),
+                    'cnpj' => fake()->cnpj(false),
                     'telefone' => fake()->phoneNumber(),
-                    'endereco' => fake()->address(),
+                    'email' => fake()->safeEmail(),
+                    'origem' => fake()->word(),
+                    'mensagem' => fake()->sentence(),
+                    'tipo_veiculo' => fake()->word(),
+                    'modelo_veiculo' => fake()->word(),
+                    'data_precisa' => $data->copy()->addDays(3),
+                    'tempo_locacao' => fake()->randomElement(['1 dia', '1 semana', '1 mês']),
+                    'status' => 'novo',
+                    'status_detalhe' => null,
+                    'vendedor_id' => $vendedor?->id,
+                    'recepcionista_id' => $recepcionista?->id,
+                    'canal_raw' => [],
                     'observacoes' => fake()->sentence(),
-                ],
-                'status' => fake()->randomElement(['pendente', 'aprovado', 'negado', 'correcao']),
-                'user_id' => $usuarios->random()->id,
-                'tipo_venda' => $tipoVenda,
-                'valor_venda' => $valorVenda,
-                'valor_venda_total' => $valorVendaTotal,
-                'valor_mensalidade' => $valorMensalidade,
-                'percentual_comissao' => $calc['percentual'],
-                'valor_comissao_calculado' => $calc['valor'],
-                'motivo_negativa' => fake()->optional()->sentence(),
-                'comentario_correcao' => fake()->optional()->sentence(),
-                'created_at' => $createdAt,
-                'updated_at' => $createdAt,
-            ]);
+                    'created_at' => $data,
+                    'updated_at' => $data,
+                ]);
+
+                // 50% das cotações com vendedor viram questionário
+                $criarQuestionario = $vendedor && fake()->boolean(50);
+
+                if ($criarQuestionario) {
+                    Questionario::create([
+                        'tipo' => $cotacao->pessoa,
+                        'dados' => [
+                            'nome' => $cotacao->nome_razao,
+                            'cpf' => $cotacao->cpf,
+                            'cnpj' => $cotacao->cnpj,
+                            'email' => $cotacao->email,
+                            'telefone' => $cotacao->telefone,
+                            'endereco' => fake()->address(),
+                            'observacoes' => fake()->sentence(),
+                        ],
+                        'status' => fake()->randomElement(['pendente', 'aprovado', 'negado', 'correcao']),
+                        'user_id' => $vendedor->id,
+                        'tipo_venda' => $tipoVenda,
+                        'valor_venda' => $valorVenda,
+                        'valor_venda_total' => $valorVendaTotal,
+                        'valor_mensalidade' => $valorMensalidade,
+                        'percentual_comissao' => $calc['percentual'],
+                        'valor_comissao_calculado' => $calc['valor'],
+                        'motivo_negativa' => fake()->optional()->sentence(),
+                        'comentario_correcao' => fake()->optional()->sentence(),
+                        'cotacao_id' => $cotacao->id,
+                        'created_at' => $data,
+                        'updated_at' => $data,
+                    ]);
+
+                    // atualiza cotação como convertida
+                    $cotacao->update([
+                        'status' => 'convertido',
+                        'status_detalhe' => 'Aprovado via questionário',
+                    ]);
+                }
+            }
         }
     }
 }

@@ -2,45 +2,42 @@
 
 namespace App\Services;
 
+use App\Events\RotacaoAtualizada;
 use App\Models\Cotacao;
+use App\Models\Rotacao;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 
 class RotacaoVendedoresService
 {
-    /** Retorna [ultimoId, proximoId, ultimoNome, proximoNome] */
-    public static function calcular(): array
+    public function calcular(Cotacao $cotacao)
     {
-        // Vendedores elegíveis (ativos) em ordem crescente de ID
-        $ids = User::query()
-            ->where('role', 'user')
-            ->where('ativo', true) // ajuste se sua coluna for diferente
+        $ids = User::where('role', 'user')
+            ->where('ativo', true)
             ->orderBy('id')
             ->pluck('id')
             ->all();
 
-        if (empty($ids)) {
-            return [null, null, null, null];
-        }
+        $rotacao = Rotacao::firstOrCreate(['id' => 1], ['ultimo_id' => null, 'proximo_id' => $ids[0]]);
+        $ultimoId = $cotacao->vendedor_id; // ✅ ATUAL: vendedor recém atribuído
 
-        // Último vendedor atribuído (pela cotação mais recente com vendedor_id)
-        $ultimo = Cotacao::query()
-            ->whereNotNull('vendedor_id')
-            ->orderByDesc('id')
-            ->value('vendedor_id');
-
-        // Se nunca houve atribuição, o "último" é nulo e o próximo será o primeiro da lista
+        // Calcula próximo com base no novo último
         $proximoId = $ids[0];
-        $ultimoId = $ultimo;
-
-        if ($ultimo && in_array($ultimo, $ids, true)) {
-            // Pega o índice do último e move para o próximo (com loop)
-            $idx = array_search($ultimo, $ids, true);
-            $proximoId = $ids[ ($idx + 1) % count($ids) ];
+        if ($ultimoId && in_array($ultimoId, $ids)) {
+            $idx = array_search($ultimoId, $ids);
+            $proximoId = $ids[($idx + 1) % count($ids)];
         }
 
-        $ultimoNome  = $ultimoId ? User::whereKey($ultimoId)->value('name') : null;
-        $proximoNome = User::whereKey($proximoId)->value('name');
+        $rotacao->update([
+            'ultimo_id' => $ultimoId,
+            'proximo_id' => $proximoId,
+        ]);
 
-        return [$ultimoId, $proximoId, $ultimoNome, $proximoNome];
+        return [
+            'ultimo_id' => $ultimoId,
+            'ultimo_nome' => User::find($ultimoId)?->name,
+            'proximo_id' => $proximoId,
+            'proximo_nome' => User::find($proximoId)?->name,
+        ];
     }
 }

@@ -65,11 +65,12 @@ class CotacaoController extends Controller
         $cotacao->recepcionista_id = $request->user()->id;
         if ($cotacao->status === 'novo') $cotacao->status = 'em_atendimento';
         $cotacao->save();
+        $cotacao->refresh(); // reforço, garante que o vendedor_id esteja visível
+        $dadosRotacao = app(RotacaoVendedoresService::class)->calcular($cotacao); // 👈 ESSENCIAL
 
         event(new \App\Events\CotacaoAtualizada($cotacao));
+        event(new RotacaoAtualizada($dadosRotacao));
 
-        [, , $ultimoNome, $proximoNome] = RotacaoVendedoresService::calcular();
-        event(new RotacaoAtualizada($ultimoNome, $proximoNome));
 
         return response()->json(['message'=>'Atribuída com sucesso']);
     }

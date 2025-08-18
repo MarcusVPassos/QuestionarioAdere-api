@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Bluefeet;
 use App\Http\Controllers\CotacaoController;
 use App\Http\Controllers\CotacaoSiteController;
 use App\Http\Controllers\DashboardController;
@@ -11,11 +12,19 @@ use App\Http\Controllers\DocumentoController;
 use App\Http\Controllers\QuestionarioController;
 use App\Http\Controllers\RotacaoController;
 use App\Http\Controllers\UserController;
-
+use App\Services\BlueFleetService;
 
 Route::middleware('throttle:30,1')->group(function () {
     Route::post('/cotacoes/public', [CotacaoSiteController::class, 'store']);
 });
+
+Route::get('/bluefleet-token', function (BlueFleetService $service) {
+    return response()->json([
+        'access_token' => $service->getAccessToken(),
+    ]);
+});
+
+Route::get('/bluefleet-veiculos', [Bluefeet::class, 'buscarVeiculos']);
 
 // Rota pública para login
 Route::post('/login', LoginController::class);
