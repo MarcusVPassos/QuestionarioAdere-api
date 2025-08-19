@@ -32,6 +32,9 @@ return new class extends Migration
             $table->date('data_precisa')->nullable();
             $table->string('tempo_locacao')->nullable();
 
+            // Tipo venda
+            $table->enum('tipo_venda', ['diario', 'mensal', 'assinatura'])->nullable();
+
             // Gerenciais
             $table->enum('status', ['novo','em_atendimento','negociacao','recusado','convertido'])->default('novo');
             $table->string('status_detalhe')->nullable();

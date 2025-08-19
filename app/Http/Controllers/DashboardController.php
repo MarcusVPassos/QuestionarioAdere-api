@@ -71,6 +71,19 @@ class DashboardController extends Controller
             ->whereMonth('created_at', $mes)
             ->count();
 
+        $tiposCotacao = ['diario', 'mensal', 'assinatura'];
+        $cotacoesPorTipo = Cotacao::whereYear('created_at', $ano)
+            ->whereMonth('created_at', $mes)
+            ->selectRaw('LOWER(tipo_venda) as tipo, COUNT(*) as total')
+            ->groupBy('tipo')
+            ->pluck('total', 'tipo')
+            ->toArray();
+
+        $tiposCotacao = ['diario', 'mensal', 'assinatura'];
+        foreach ($tiposCotacao as $tipo) {
+            $cotacoesPorTipo[$tipo] = $cotacoesPorTipo[$tipo] ?? 0;
+        }
+
         $totalAprovados = $questionariosMensal['aprovado'] ?? 0;
         $totalCorrecao = $questionariosMensal['correcao'] ?? 0;
 
@@ -109,6 +122,7 @@ class DashboardController extends Controller
                 'negados'   => $questionariosMensal['negado'] ?? 0,
                 'correcao'  => $totalCorrecao,
                 'cotacoes'  => $cotacoesMensal,
+                'cotacoes_por_tipo' => $cotacoesPorTipo,
                 'vendas_por_tipo' => $vendasPorTipo,
                 'aproveitamento'  => $cotacoesMensal > 0 ? round(($totalAprovados / $cotacoesMensal) * 100) : 0,
                 'comissao_total' => round($comissaoTotal, 2),
