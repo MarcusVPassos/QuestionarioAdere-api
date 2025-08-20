@@ -17,30 +17,28 @@ class CotacaoController extends Controller
 
         $q = Cotacao::query()
             ->with(['vendedor:id,name','recepcionista:id,name','questionario:id,cotacao_id,status'])
-            ->orderByDesc('id');
+            ->orderByDesc('created_at'); // 👈 ordena por data de criação
 
         // 🔒 Vendedor só vê as suas (não aplica para recepção explícita)
         if ($u->role === 'user' && !$request->boolean('somente_recepcao')) {
             $q->where('vendedor_id', $u->id);
         }
 
-        // 🎯 Modo Recepção: somente "novo" e sem vendedor
+        // 🎯 Modo Recepção
         if ($request->boolean('somente_recepcao')) {
-            $q->whereNull('vendedor_id')
-            ->where('status', 'novo');
+            $q->whereNull('vendedor_id')->where('status', 'novo');
         } else {
-            // Filtros padrão (aplicados apenas quando NÃO é recepção)
             if ($request->filled('status')) {
-                $q->where('status', $request->string('status')->toString());
+                $q->where('status', $request->string('status'));
             }
-
             if ($request->filled('vendedor_id')) {
                 $q->where('vendedor_id', (int) $request->vendedor_id);
             }
         }
 
+        // 🔎 Busca
         if ($request->filled('busca')) {
-            $b = '%'.$request->string('busca')->toString().'%';
+            $b = '%'.$request->string('busca').'%';
             $q->where(function($w) use ($b){
                 $w->where('nome_razao','like',$b)
                 ->orWhere('telefone','like',$b)
@@ -48,7 +46,35 @@ class CotacaoController extends Controller
             });
         }
 
-        return $q->paginate(10);
+        // 📅 Filtros por mês/dia
+        $ano  = (int) $request->query('ano', 0);
+        $mes  = (int) $request->query('mes', 0);
+        $dia  = (string) $request->query('dia', ''); // YYYY-MM-DD
+
+        // dia tem prioridade
+        if ($dia !== '') {
+            $q->whereDate('created_at', $dia);
+        } elseif ($ano > 0 && $mes > 0) {
+            // intervalo mês
+            $inicio = \Carbon\Carbon::createFromDate($ano, $mes, 1)->startOfDay();
+            $fim    = (clone $inicio)->endOfMonth();
+            $q->whereBetween('created_at', [$inicio, $fim]);
+        } elseif ($ano > 0) {
+            $inicio = \Carbon\Carbon::createFromDate($ano, 1, 1)->startOfDay();
+            $fim    = (clone $inicio)->endOfYear();
+            $q->whereBetween('created_at', [$inicio, $fim]);
+        }
+
+        // ♾️ Cursor pagination (10 por vez)
+        $perPage = (int) $request->query('per_page', 10);
+        $results = $q->cursorPaginate($perPage)->withQueryString();
+
+        // resposta amigável ao frontend para infinite scroll
+        return response()->json([
+            'data'        => $results->items(),
+            'next_cursor' => $results->nextCursor()?->encode(), // string ou null
+            'has_more'    => $results->hasMorePages(),
+        ]);
     }
 
     public function atribuir(Request $request, Cotacao $cotacao)

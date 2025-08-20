@@ -19,6 +19,7 @@ class Cotacao extends Model
     protected $casts = [
         'data_precisa' => 'date:Y-m-d',
         'canal_raw' => 'array',
+        'created_at'   => 'datetime:Y-m-d H:i:s',
     ];
 
     public function vendedor(): BelongsTo { return $this->belongsTo(User::class, 'vendedor_id'); }
