@@ -93,10 +93,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/usuarios/{id}/inativar', [UserController::class, 'inativar'])->middleware('auth:sanctum');
 
         Route::get('/dashboard', [DashboardController::class, 'index']);
+        
         Route::get('/dashboard/disponiveis', [DashboardController::class, 'disponiveis']);
 
         Route::get('/dashboard/completo', [DashboardController::class, 'completo']);
 
+        Route::get('/dashboard/vendedores', [DashboardController::class, 'vendedoresResumo']);
         Route::get('/dashboard/usuario/{id}', [DashboardController::class, 'porUsuario']);
     });
 });

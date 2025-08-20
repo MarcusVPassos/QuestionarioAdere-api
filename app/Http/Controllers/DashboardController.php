@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Events\NovoQuestionarioCriado;
 use App\Models\Cotacao;
 use App\Models\Questionario;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -228,4 +229,61 @@ public function porUsuario($id, Request $request)
     ]);
 }
 
+    public function vendedoresResumo(Request $request)
+    {
+        $ano  = (int) $request->input('ano', now()->year);
+        $mes  = (int) $request->input('mes', now()->month);
+        $incInativos = $request->boolean('incluir_inativos', false);
+
+        // 1) Buscar todos os vendedores (role=user)
+        $usuarios = User::query()
+            ->select('id','name','role','ativo')
+            ->where('role','user')
+            ->when(!$incInativos, fn($q) => $q->where('ativo', true))
+            ->orderBy('name')
+            ->get();
+
+        if ($usuarios->isEmpty()) {
+            return response()->json([]);
+        }
+
+        $ids = $usuarios->pluck('id');
+
+        // 2) Cotações recebidas no mês (com vendedor atribuído)
+        $cotacoesPorVendedor = Cotacao::query()
+            ->whereIn('vendedor_id', $ids)
+            ->whereYear('created_at', $ano)
+            ->whereMonth('created_at', $mes)
+            ->selectRaw('vendedor_id, COUNT(*) as total')
+            ->groupBy('vendedor_id')
+            ->pluck('total', 'vendedor_id');
+
+        // 3) Aprovados no mês por usuário (usando quem aprovou/criou o questionário)
+        $aprovadosPorUsuario = Questionario::query()
+            ->whereIn('user_id', $ids)
+            ->where('status', 'aprovado')
+            ->whereYear('created_at', $ano)
+            ->whereMonth('created_at', $mes)
+            ->selectRaw('user_id, COUNT(*) as total')
+            ->groupBy('user_id')
+            ->pluck('total', 'user_id');
+
+        // 4) Montar resposta
+        $resultado = $usuarios->map(function ($u) use ($cotacoesPorVendedor, $aprovadosPorUsuario) {
+            $cot   = (int) ($cotacoesPorVendedor[$u->id] ?? 0);
+            $aprov = (int) ($aprovadosPorUsuario[$u->id] ?? 0);
+            $aprovPct = $cot > 0 ? round(($aprov / $cot) * 100) : 0;
+
+            return [
+                'id'               => $u->id,
+                'name'             => $u->name,
+                'ativo'            => (bool) $u->ativo,
+                'cotacoes_mes'     => $cot,
+                'aprovados_mes'    => $aprov,
+                'aproveitamento'   => $aprovPct, // %
+            ];
+        })->values();
+
+        return response()->json($resultado);
+    }
 }
