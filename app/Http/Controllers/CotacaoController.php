@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\CotacaoAtualizada;
 use App\Events\RotacaoAtualizada;
 use App\Models\Cotacao;
 use App\Models\Questionario;
@@ -58,18 +59,24 @@ class CotacaoController extends Controller
         }
 
         $data = $request->validate([
-            'vendedor_id' => 'required|exists:users,id'
+            'vendedor_id' => 'required|exists:users,id',
+            'sem_rotacao'   => 'sometimes|boolean'
         ]);
 
         $cotacao->vendedor_id = $data['vendedor_id'];
         $cotacao->recepcionista_id = $request->user()->id;
+
         if ($cotacao->status === 'novo') $cotacao->status = 'em_atendimento';
+
         $cotacao->save();
         $cotacao->refresh(); // reforço, garante que o vendedor_id esteja visível
-        $dadosRotacao = app(RotacaoVendedoresService::class)->calcular($cotacao); // 👈 ESSENCIAL
 
-        event(new \App\Events\CotacaoAtualizada($cotacao));
-        event(new RotacaoAtualizada($dadosRotacao));
+        if (empty($data['sem_rotacao'])) {
+            $dadosRotacao = app(RotacaoVendedoresService::class)->calcular($cotacao);
+            event(new RotacaoAtualizada($dadosRotacao));
+        }
+
+        event(new CotacaoAtualizada($cotacao));
 
 
         return response()->json(['message'=>'Atribuída com sucesso']);
