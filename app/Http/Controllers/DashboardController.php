@@ -268,11 +268,22 @@ public function porUsuario($id, Request $request)
             ->groupBy('user_id')
             ->pluck('total', 'user_id');
 
+        // 3b) Comissão total no mês por usuário (de questionários aprovados)
+        $comissaoPorUsuario = Questionario::query()
+            ->whereIn('user_id', $ids)
+            ->where('status', 'aprovado')
+            ->whereYear('created_at', $ano)
+            ->whereMonth('created_at', $mes)
+            ->selectRaw('user_id, SUM(valor_comissao_calculado) as total')
+            ->groupBy('user_id')
+            ->pluck('total', 'user_id');
+
         // 4) Montar resposta
-        $resultado = $usuarios->map(function ($u) use ($cotacoesPorVendedor, $aprovadosPorUsuario) {
+        $resultado = $usuarios->map(function ($u) use ($cotacoesPorVendedor, $aprovadosPorUsuario, $comissaoPorUsuario) {
             $cot   = (int) ($cotacoesPorVendedor[$u->id] ?? 0);
             $aprov = (int) ($aprovadosPorUsuario[$u->id] ?? 0);
             $aprovPct = $cot > 0 ? round(($aprov / $cot) * 100) : 0;
+            $comissao = (float) ($comissaoPorUsuario[$u->id] ?? 0);
 
             return [
                 'id'               => $u->id,
@@ -281,6 +292,7 @@ public function porUsuario($id, Request $request)
                 'cotacoes_mes'     => $cot,
                 'aprovados_mes'    => $aprov,
                 'aproveitamento'   => $aprovPct, // %
+                'comissao'         => round((float) ($comissaoPorUsuario[$u->id] ?? 0), 2),
             ];
         })->values();
 

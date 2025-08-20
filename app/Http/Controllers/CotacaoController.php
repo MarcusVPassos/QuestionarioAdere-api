@@ -161,7 +161,7 @@ class CotacaoController extends Controller
         $cotacao->status = 'convertido';
         $cotacao->save();
 
-        event(new \App\Events\CotacaoAtualizada($cotacao /*, $questionario */));
+        event(new CotacaoAtualizada($cotacao /*, $questionario */));
 
         return response()->json([
             'message' => 'Convertido em questionário',
