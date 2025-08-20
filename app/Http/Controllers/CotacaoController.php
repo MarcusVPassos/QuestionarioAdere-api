@@ -7,6 +7,7 @@ use App\Events\RotacaoAtualizada;
 use App\Models\Cotacao;
 use App\Models\Questionario;
 use App\Services\RotacaoVendedoresService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class CotacaoController extends Controller
@@ -211,5 +212,17 @@ class CotacaoController extends Controller
             ->orderByDesc('id')
             ->limit(10)
             ->get();
+    }
+
+    public function totalHoje()
+    {
+        $hoje = Carbon::today()->toDateString();
+
+        $total = Cotacao::whereDate('created_at', $hoje)->count();
+
+        return response()->json([
+            'data'  => $hoje,
+            'total' => $total,
+        ]);
     }
 }

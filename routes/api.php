@@ -60,6 +60,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/cotacoes', [CotacaoController::class, 'index']);
     Route::get('/cotacoes/buscar', [CotacaoController::class, 'buscar']);
     Route::get('/rotacao/status', [RotacaoController::class, 'status']);
+    Route::get('/cotacoes/hoje-total', [CotacaoController::class, 'totalHoje']);
 
     // Só recepção/supervisor/diretoria
     Route::middleware('role:recepcao,supervisor,diretoria')->group(function () {
