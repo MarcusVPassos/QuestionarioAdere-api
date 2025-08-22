@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Events\NovoQuestionarioCriado;
+use App\Events\QuestionarioAtualizado;
+use App\Events\QuestionarioStatusAtualizado;
 use App\Http\Requests\StoreQuestionarioRequest;
 use App\Http\Requests\UpdateQuestionarioRequest;
 use App\Models\Cotacao;
@@ -11,7 +13,6 @@ use App\Models\Questionario;
 use App\Models\Documento;
 use App\Providers\ComissaoService;
 use App\Services\SyncCotacaoStatusService;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 
@@ -137,7 +138,6 @@ public function index(Request $request)
 
         $questionario->load(['documentos', 'cotacao']);
         event(new NovoQuestionarioCriado($questionario));
-        Cache::flush();
 
         return response()->json([
             'message'      => 'Questionário enviado com sucesso',
@@ -192,8 +192,7 @@ public function index(Request $request)
 
         SyncCotacaoStatusService::syncFromQuestionario($questionario);
 
-        event(new NovoQuestionarioCriado($questionario));
-        Cache::flush();
+        event(new QuestionarioStatusAtualizado($questionario));
 
         return response()->json([
             'message' => 'Status atualizado com sucesso.',
@@ -254,8 +253,7 @@ public function index(Request $request)
         }
 
         $questionario->refresh()->load('documentos');
-        event(new NovoQuestionarioCriado($questionario));
-        Cache::flush();
+        event(new QuestionarioAtualizado($questionario));
 
         return response()->json([
             'message' => 'Questionário atualizado com sucesso.',
@@ -289,22 +287,6 @@ public function index(Request $request)
             ->orderByDesc('ano')
             ->orderByDesc('mes')
             ->get();
-    }
-
-    private function gerarCacheKey(Request $request): string
-    {
-        $filtros = [
-            'status' => $request->input('status'),
-            'tipo' => $request->input('tipo'),
-            'ano' => $request->input('ano'),
-            'mes' => $request->input('mes'),
-            'nome' => $request->input('nome'),
-            'protocolo' => $request->input('protocolo'),
-            'so_user' => $request->input('so_user'),
-            'pagina' => $request->input('page', 1),
-        ];
-
-        return 'questionarios:' . md5(json_encode($filtros));
     }
 
     public function buscarCotacoes(Request $request)

@@ -2,15 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Events\NovoQuestionarioCriado;
 use App\Models\Cotacao;
 use App\Models\Questionario;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -23,22 +19,14 @@ class DashboardController extends Controller
         if (!is_numeric($mes) || $mes < 1 || $mes > 12) {
             return response()->json(['error' => 'Mês inválido'], 422);
         }
-
         if (!is_numeric($ano)) {
             return response()->json(['error' => 'Ano inválido'], 422);
         }
-
-        // ⚡️ Quando há filtro por dia, ignora cache
         if ($dia) {
             return response()->json($this->calcularDashboard($ano, $mes, $dia));
         }
 
-        // ✅ Com cache apenas para visão mensal
-        $cacheKey = "dashboard:mes:$ano-$mes";
-
-        return Cache::remember($cacheKey, now()->addMinutes(2), function () use ($ano, $mes) {
-            return $this->calcularDashboard($ano, $mes);
-        });
+        return response()->json($this->calcularDashboard($ano, $mes));
     }
 
     private function calcularDashboard(int $ano, int $mes, ?int $dia = null): array
@@ -149,38 +137,34 @@ class DashboardController extends Controller
         $mes = (int) $request->input('mes', now()->month);
         $dia = $request->input('dia');
 
-        $cacheKey = "dashboard:completo:$ano-$mes-" . ($dia ?? 'todos');
+        $dashboardReq = Request::create('/api/dashboard', 'GET', [
+            'ano' => $ano,
+            'mes' => $mes,
+            'dia' => $dia
+        ]);
+        $dashboardResponse = app()->handle($dashboardReq);
+        $dashboardData = json_decode($dashboardResponse->getContent(), true);
 
-        return Cache::remember($cacheKey, now()->addSeconds(120), function () use ($ano, $mes, $dia) {
-            $dashboardReq = Request::create('/api/dashboard', 'GET', [
-                'ano' => $ano,
-                'mes' => $mes,
-                'dia' => $dia
-            ]);
-            $dashboardResponse = app()->handle($dashboardReq);
-            $dashboardData = json_decode($dashboardResponse->getContent(), true);
+        $resumoReq = Request::create('/api/cotacoes', 'GET', [
+            'ano' => $ano,
+            'mes' => $mes,
+            'dia' => $dia
+        ]);
+        $resumoResponse = app()->handle($resumoReq);
+        $resumoData = json_decode($resumoResponse->getContent(), true);
 
-            $resumoReq = Request::create('/api/cotacoes', 'GET', [
-                'ano' => $ano,
-                'mes' => $mes,
-                'dia' => $dia
-            ]);
-            $resumoResponse = app()->handle($resumoReq);
-            $resumoData = json_decode($resumoResponse->getContent(), true);
+        $porDiaReq = Request::create('/api/cotacoes/por-dia', 'GET', [
+            'ano' => $ano,
+            'mes' => $mes
+        ]);
+        $porDiaResponse = app()->handle($porDiaReq);
+        $porDiaData = json_decode($porDiaResponse->getContent(), true);
 
-            $porDiaReq = Request::create('/api/cotacoes/por-dia', 'GET', [
-                'ano' => $ano,
-                'mes' => $mes
-            ]);
-            $porDiaResponse = app()->handle($porDiaReq);
-            $porDiaData = json_decode($porDiaResponse->getContent(), true);
-
-            return [
-                'dashboard' => $dashboardData,
-                'resumo' => $resumoData,
-                'agrupadas' => $porDiaData
-            ];
-        });
+        return response()->json([
+            'dashboard' => $dashboardData,
+            'resumo' => $resumoData,
+            'agrupadas' => $porDiaData
+        ]);
     }
 
 public function porUsuario($id, Request $request)

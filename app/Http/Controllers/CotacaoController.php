@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\CotacaoAtribuida;
 use App\Events\CotacaoAtualizada;
+use App\Events\CotacaoConvertida;
 use App\Events\RotacaoAtualizada;
 use App\Models\Cotacao;
 use App\Models\Questionario;
@@ -57,11 +59,11 @@ class CotacaoController extends Controller
             $q->whereDate('created_at', $dia);
         } elseif ($ano > 0 && $mes > 0) {
             // intervalo mês
-            $inicio = \Carbon\Carbon::createFromDate($ano, $mes, 1)->startOfDay();
+            $inicio = Carbon::createFromDate($ano, $mes, 1)->startOfDay();
             $fim    = (clone $inicio)->endOfMonth();
             $q->whereBetween('created_at', [$inicio, $fim]);
         } elseif ($ano > 0) {
-            $inicio = \Carbon\Carbon::createFromDate($ano, 1, 1)->startOfDay();
+            $inicio = Carbon::createFromDate($ano, 1, 1)->startOfDay();
             $fim    = (clone $inicio)->endOfYear();
             $q->whereBetween('created_at', [$inicio, $fim]);
         }
@@ -103,7 +105,7 @@ class CotacaoController extends Controller
             event(new RotacaoAtualizada($dadosRotacao));
         }
 
-        event(new CotacaoAtualizada($cotacao));
+        event(new CotacaoAtribuida($cotacao));
 
 
         return response()->json(['message'=>'Atribuída com sucesso']);
@@ -151,7 +153,7 @@ class CotacaoController extends Controller
         //       ↑ se recusado e não for "Outro", opcionalmente gravamos o próprio detalhe em motivo_recusa (fica documentado)
         $cotacao->save();
 
-        event(new \App\Events\CotacaoAtualizada($cotacao));
+        event(new CotacaoAtualizada($cotacao));
 
         return response()->json(['message'=>'Status atualizado']);
     }
@@ -188,7 +190,7 @@ class CotacaoController extends Controller
         $cotacao->status = 'convertido';
         $cotacao->save();
 
-        event(new CotacaoAtualizada($cotacao /*, $questionario */));
+        event(new CotacaoConvertida($cotacao));
 
         return response()->json([
             'message' => 'Convertido em questionário',
