@@ -25,6 +25,8 @@ Route::get('/bluefleet-token', function (BlueFleetService $service) {
 });
 
 Route::get('/bluefleet-veiculos', [Bluefeet::class, 'buscarVeiculos']);
+Route::get('/bluefleet-contratos', [Bluefeet::class, 'buscarContrato']);
+Route::get('/bluefleet-contratoss', [Bluefeet::class, 'buscarContratoPorDocumento']);
 
 // Rota pública para login
 Route::post('/login', LoginController::class);

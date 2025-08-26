@@ -77,6 +77,7 @@ class UserController extends Controller
         }
 
         $user->ativo = false;
+        event(new \App\Events\UsuarioInativado($user->id));
         $user->save();
 
         // Revoga tokens ativos do usuário inativado
