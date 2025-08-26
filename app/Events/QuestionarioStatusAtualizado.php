@@ -14,7 +14,7 @@ class QuestionarioStatusAtualizado implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public function __construct(public Questionario $questionario) {
-        $questionario->refresh()->load('documentos');
+        $questionario->refresh()->load(['documentos','user']);
     }
 
     public function broadcastOn(): Channel {
