@@ -14,6 +14,7 @@ use App\Http\Controllers\DocumentoController;
 use App\Http\Controllers\MidiaController;
 use App\Http\Controllers\ModeloController;
 use App\Http\Controllers\QuestionarioController;
+use App\Http\Controllers\RelatorioMidiaController;
 use App\Http\Controllers\RotacaoController;
 use App\Http\Controllers\TiposController;
 use App\Http\Controllers\UserController;
@@ -144,5 +145,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post  ('/tipos',           [TiposController::class, 'store']);
         Route::put   ('/tipos/{tipos}',    [TiposController::class, 'update']);
         Route::delete('/tipos/{tipos}',    [TiposController::class, 'destroy']);
+
+        // Relatório de mídias
+        Route::get('/marketing/relatorios/midias', [RelatorioMidiaController::class, 'distribuicao']);
+        Route::get('/marketing/relatorios/midias/serie', [RelatorioMidiaController::class, 'serieAnual']);
     });
 });
