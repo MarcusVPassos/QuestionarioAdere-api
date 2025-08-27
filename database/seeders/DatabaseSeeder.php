@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             QuestionarioSeeder::class,
+            MarketingDemoSeeder::class,
         ]);
     }
 }

@@ -17,6 +17,7 @@ class QuestionarioSeeder extends Seeder
             ['name' => 'diretoria', 'role' => 'diretoria'],
             ['name' => 'supervisor', 'role' => 'supervisor'],
             ['name' => 'recepcao', 'role' => 'recepcao'],
+            ['name' => 'marketing', 'role' => 'marketing'],
             ['name' => 'vendedor1', 'role' => 'user'],
             ['name' => 'vendedor2', 'role' => 'user'],
             ['name' => 'vendedor3', 'role' => 'user'],

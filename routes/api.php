@@ -5,18 +5,32 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Bluefeet;
+use App\Http\Controllers\CarrosController;
+use App\Http\Controllers\CatalogoPublicController;
 use App\Http\Controllers\CotacaoController;
 use App\Http\Controllers\CotacaoSiteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentoController;
+use App\Http\Controllers\MidiaController;
+use App\Http\Controllers\ModeloController;
 use App\Http\Controllers\QuestionarioController;
 use App\Http\Controllers\RotacaoController;
+use App\Http\Controllers\TiposController;
 use App\Http\Controllers\UserController;
+use App\Models\Tipos;
 use App\Services\BlueFleetService;
 
 Route::middleware('throttle:30,1')->group(function () {
     Route::post('/cotacoes/public', [CotacaoSiteController::class, 'store']);
 });
+
+// Catálogo público (somente leitura)
+Route::get('/public/midias',  [CatalogoPublicController::class, 'midias']);
+Route::get('/public/modelos', [CatalogoPublicController::class, 'modelos']);
+Route::get('/public/carros',  [CatalogoPublicController::class, 'carros']);
+Route::get('/public/tipos', fn () =>
+    Tipos::where('ativo', true)->orderBy('nome')->get(['id','nome'])
+);
 
 Route::get('/bluefleet-token', function (BlueFleetService $service) {
     return response()->json([
@@ -103,5 +117,32 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/dashboard/vendedores', [DashboardController::class, 'vendedoresResumo']);
         Route::get('/dashboard/usuario/{id}', [DashboardController::class, 'porUsuario']);
+    });
+
+    // ========================= MARKETING (somente diretoria/marketing) =========================
+    Route::middleware('role:diretoria,marketing')->group(function () {
+        // MIDIAS
+        Route::get   ('/midias',            [MidiaController::class,   'index']);   // listar (admin)
+        Route::post  ('/midias',            [MidiaController::class,   'store']);   // criar
+        Route::put   ('/midias/{midia}',    [MidiaController::class,   'update']);  // editar
+        Route::delete('/midias/{midia}',    [MidiaController::class,   'destroy']); // excluir
+
+        // MODELOS
+        Route::get   ('/modelos',           [ModeloController::class,  'index']);
+        Route::post  ('/modelos',           [ModeloController::class,  'store']);
+        Route::put   ('/modelos/{modelo}',  [ModeloController::class,  'update']);
+        Route::delete('/modelos/{modelo}',  [ModeloController::class,  'destroy']);
+
+        // CARROS (suporta upload de imagem OU imagem_url)
+        Route::get   ('/carros',            [CarrosController::class,  'index']);
+        Route::post  ('/carros',            [CarrosController::class,  'store']);   // multipart/form-data (imagem) OU JSON (imagem_url)
+        Route::put   ('/carros/{carro}',    [CarrosController::class,  'update']);
+        Route::delete('/carros/{carro}',    [CarrosController::class,  'destroy']);
+
+        // Tipos
+        Route::get   ('/tipos',           [TiposController::class, 'index']);
+        Route::post  ('/tipos',           [TiposController::class, 'store']);
+        Route::put   ('/tipos/{tipos}',    [TiposController::class, 'update']);
+        Route::delete('/tipos/{tipos}',    [TiposController::class, 'destroy']);
     });
 });
