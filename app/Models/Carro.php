@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 class Carro extends Model
 {
     protected $table = 'carros';
-    protected $fillable = ['modelo_id','titulo','descricao','imagem_url','tipos','ativo'];
+    protected $fillable = ['modelo_id','titulo','imagem_url','tipos','ativo'];
     protected $casts   = ['tipos' => 'array', 'ativo' => 'boolean'];
 
     public function modelo(): BelongsTo

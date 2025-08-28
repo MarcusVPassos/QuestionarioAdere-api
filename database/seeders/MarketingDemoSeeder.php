@@ -68,56 +68,48 @@ class MarketingDemoSeeder extends Seeder
             [
                 'modelo'     => 'Kwid',
                 'titulo'     => 'Renault Kwid',
-                'descricao'  => 'Kwid Zen 1.0 Flex',
                 'tipos'      => ['Hatch'],
                 'imagem_url' => $place('Renault+Kwid'),
             ],
             [
                 'modelo'     => 'C3',
                 'titulo'     => 'Citroën C3',
-                'descricao'  => 'C3 Live 1.0 Flex',
                 'tipos'      => ['Hatch'],
                 'imagem_url' => $place('Citroen+C3'),
             ],
             [
                 'modelo'     => 'Onix',
                 'titulo'     => 'Chevrolet Onix',
-                'descricao'  => 'Onix MT 1.0 Flex',
                 'tipos'      => ['Hatch'],
                 'imagem_url' => $place('Chevrolet+Onix'),
             ],
             [
                 'modelo'     => 'Logan',
                 'titulo'     => 'Renault Logan',
-                'descricao'  => 'Logan Life 1.0 Flex',
                 'tipos'      => ['Sedan'],
                 'imagem_url' => $place('Renault+Logan'),
             ],
             [
                 'modelo'     => 'Fastback',
                 'titulo'     => 'Fiat Fastback',
-                'descricao'  => 'Fastback Turbo 1.0 Flex AT',
                 'tipos'      => ['SUV'],
                 'imagem_url' => $place('Fiat+Fastback'),
             ],
             [
                 'modelo'     => 'C3 Aircross',
                 'titulo'     => 'Citroën C3 Aircross',
-                'descricao'  => 'C3 Aircross 7L 1.0 Turbo Flex',
                 'tipos'      => ['SUV'],
                 'imagem_url' => $place('Citroen+C3+Aircross'),
             ],
             [
                 'modelo'     => 'Spin',
                 'titulo'     => 'Chevrolet Spin',
-                'descricao'  => 'Spin LTZ 7L 1.8 Flex AT',
                 'tipos'      => ['MiniVan'],
                 'imagem_url' => $place('Chevrolet+Spin'),
             ],
             [
                 'modelo'     => 'Duster',
                 'titulo'     => 'Renault Duster',
-                'descricao'  => 'Duster Intense 1.6 Flex CVT',
                 'tipos'      => ['SUV'],
                 'imagem_url' => $place('Renault+Duster'),
             ],
@@ -130,7 +122,6 @@ class MarketingDemoSeeder extends Seeder
             Carro::updateOrCreate(
                 ['modelo_id' => $modeloId, 'titulo' => $c['titulo']],
                 [
-                    'descricao'  => $c['descricao'],
                     'imagem_url' => $c['imagem_url'],
                     'tipos'      => $c['tipos'], // JSON
                     'ativo'      => true,

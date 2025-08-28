@@ -48,6 +48,6 @@ class CatalogoPublicController extends Controller
             })
             ->orderBy('titulo');
 
-        return $q->get(['id', 'modelo_id', 'titulo', 'descricao', 'imagem_url', 'tipos']);
+        return $q->get(['id', 'modelo_id', 'titulo','imagem_url', 'tipos']);
     }
 }

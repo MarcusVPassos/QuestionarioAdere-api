@@ -45,7 +45,6 @@ class CarrosController extends Controller
         $data = $request->validate([
             'modelo_id'   => 'required|exists:modelos,id',
             'titulo'      => 'required|string',
-            'descricao'   => 'nullable|string',
             'imagem'      => 'nullable|image|max:5120',
             'imagem_url'  => 'nullable|string',
             'tipos'       => 'nullable|array',
@@ -67,7 +66,6 @@ class CarrosController extends Controller
         $carro = Carro::create([
             'modelo_id'  => $data['modelo_id'],
             'titulo'     => $data['titulo'],
-            'descricao'  => $data['descricao'] ?? null,
             'imagem_url' => $publicUrl,
             'tipos'      => $data['tipos'] ?? null,
             'ativo'      => $data['ativo'] ?? true,
@@ -88,7 +86,6 @@ class CarrosController extends Controller
         $data = $request->validate([
             'modelo_id'   => 'required|exists:modelos,id',
             'titulo'      => 'required|string',
-            'descricao'   => 'nullable|string',
             'imagem'      => 'nullable|image|max:5120',
             'imagem_url'  => 'nullable|string',
             'tipos'       => 'nullable|array',
@@ -109,7 +106,6 @@ class CarrosController extends Controller
         $carro->update([
             'modelo_id'  => $data['modelo_id'],
             'titulo'     => $data['titulo'],
-            'descricao'  => $data['descricao'] ?? null,
             'imagem_url' => $publicUrl,
             'tipos'      => $data['tipos'] ?? null,
             'ativo'      => $data['ativo'] ?? $carro->ativo,
