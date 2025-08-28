@@ -14,7 +14,7 @@ class CatalogoPublicController extends Controller
         return Midia::query()
             ->where('ativo', true)
             ->orderBy('nome')
-            ->get(['id', 'nome', 'slug']);
+            ->get(['id', 'nome']);
     }
 
     public function modelos(Request $request)

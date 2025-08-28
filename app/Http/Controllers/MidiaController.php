@@ -20,7 +20,6 @@ class MidiaController extends Controller
         if (!podeGerenciarMarketing($request)) return response()->json(['error'=>'Sem permissão'], 403);
         $data = $request->validate([
             'nome' => 'required|string|unique:midias,nome',
-            'slug' => 'required|string|unique:midias,slug',
             'ativo'=> 'boolean',
         ]);
         return response()->json(Midia::create($data), 201);
@@ -30,7 +29,6 @@ class MidiaController extends Controller
         if (!podeGerenciarMarketing($request)) return response()->json(['error'=>'Sem permissão'], 403);
         $data = $request->validate([
             'nome' => 'required|string|unique:midias,nome,'.$midia->id,
-            'slug' => 'required|string|unique:midias,slug,'.$midia->id,
             'ativo'=> 'boolean',
         ]);
         $midia->update($data);

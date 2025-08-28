@@ -20,19 +20,18 @@ class MarketingDemoSeeder extends Seeder
 
         /* ================= MÍDIAS ================= */
         $midias = [
-            ['nome' => 'Meta Ads',  'slug' => 'meta-ads'],   // normaliza IG/FB
-            ['nome' => 'Instagram', 'slug' => 'instagram'],  // se quiser manter separado
-            ['nome' => 'Facebook',  'slug' => 'facebook'],   // idem
-            ['nome' => 'Google',    'slug' => 'google'],
-            ['nome' => 'Linkedin',  'slug' => 'linkedin'],
-            ['nome' => 'X',         'slug' => 'x'],
-            ['nome' => 'Record Tv', 'slug' => 'record-tv'],
-            ['nome' => 'Indicação', 'slug' => 'indicacao'],
-            ['nome' => 'Outro',     'slug' => 'outro'],
+            ['nome' => 'Meta Ads'],   // normaliza IG/FB
+            ['nome' => 'Instagram' ],  // se quiser manter separado
+            ['nome' => 'Facebook'  ],   // idem
+            ['nome' => 'Google'    ],
+            ['nome' => 'Linkedin' ],
+            ['nome' => 'X'         ],
+            ['nome' => 'Record Tv'],
+            ['nome' => 'Indicação' ],
+            ['nome' => 'Outro'     ],
         ];
         foreach ($midias as $m) {
             Midia::updateOrCreate(
-                ['slug' => $m['slug']],
                 ['nome' => $m['nome'], 'ativo' => true]
             );
         }

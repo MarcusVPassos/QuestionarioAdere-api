@@ -7,6 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 class Midia extends Model
 {
     protected $table = 'midias';
-    protected $fillable = ['nome', 'slug', 'ativo'];
+    protected $fillable = ['nome','ativo'];
     protected $casts = ['ativo' => 'boolean'];
 }

@@ -11,68 +11,84 @@ use Illuminate\Support\Str;
 
 class RelatorioMidiaController extends Controller
 {
-    public function distribuicao(Request $request)
-    {
-        $ano = (int) $request->query('ano', (int) now()->format('Y'));
-        $mes = (int) $request->query('mes', (int) now()->format('n'));
+public function distribuicao(Request $request)
+{
+    $ano = (int) $request->query('ano', (int) now()->format('Y'));
+    $mes = (int) $request->query('mes', (int) now()->format('n'));
 
-        $inicio = Carbon::createFromDate($ano, $mes, 1)->startOfDay();
-        $fim    = (clone $inicio)->endOfMonth();
+    $inicio = \Carbon\Carbon::createFromDate($ano, $mes, 1)->startOfDay();
+    $fim    = (clone $inicio)->endOfMonth();
 
-        $totalMes = Cotacao::whereBetween('created_at', [$inicio, $fim])->count();
+    $totalMes = \App\Models\Cotacao::whereBetween('created_at', [$inicio, $fim])->count();
 
-        $linhas = Cotacao::query()
-            ->selectRaw("
-                CASE
-                    WHEN origem IN ('instagram','facebook') THEN 'meta-ads'
-                    WHEN origem IS NULL OR origem = '' THEN 'outro'
-                    ELSE origem
-                END AS origem_slug,
-                COUNT(*) as total
-            ")
-            ->whereBetween('created_at', [$inicio, $fim])
-            ->groupBy('origem_slug')
-            ->orderByDesc('total')
-            ->get();
+    // agrega por ORIGEM (não existe coluna "nome" em cotacoes)
+    $linhas = \App\Models\Cotacao::query()
+        ->selectRaw("
+            CASE
+                WHEN origem IN ('instagram','facebook','Instagram','Facebook') THEN 'Meta Ads'
+                WHEN origem IS NULL OR origem = '' THEN 'outro'
+                ELSE origem
+            END AS origem_nome,
+            COUNT(*) AS total
+        ")
+        ->whereBetween('created_at', [$inicio, $fim])
+        ->groupBy('origem_nome')
+        ->orderByDesc('total')
+        ->get();
 
-        $midias = Midia::where('ativo', true)->get(['id','nome','slug'])->keyBy('slug');
+    // mídias ativas cadastradas
+    $midias = \App\Models\Midia::where('ativo', true)->get(['id','nome']);
 
-        $itens = [];
-        foreach ($linhas as $row) {
-            $slug = $row->origem_slug;
-            $m = $midias->get($slug);
-            $nome = $m?->nome ?? Str::headline(str_replace('-', ' ', $slug));
-            $id   = $m?->id ?? null;
-            $qtd  = (int) $row->total;
-            $pct  = $totalMes > 0 ? round($qtd * 100 / $totalMes, 1) : 0.0;
+    $itens = [];
 
-            $itens[$slug] = [
-                'midia'   => ['id'=>$id,'nome'=>$nome,'slug'=>$slug],
-                'total'   => $qtd,
-                'percent' => $pct,
+    // monta os itens já retornados pelo agrupamento
+    foreach ($linhas as $row) {
+        $nome = (string) $row->origem_nome; // vem do alias do CASE
+        // procura pela coluna 'nome' dentro das mídias
+        $m   = $midias->firstWhere('nome', $nome);
+        $id  = $m?->id;
+        $qtd = (int) $row->total;
+        $pct = $totalMes > 0 ? round($qtd * 100 / $totalMes, 1) : 0.0;
+
+        $itens[$nome] = [
+            'midia'   => ['id' => $id, 'nome' => $nome],
+            'total'   => $qtd,
+            'percent' => $pct,
+        ];
+    }
+
+    // completa com zeros para mídias que não apareceram no período
+    // (Instagram/Facebook colapsam em 'meta-ads')
+    $nomesZero = $midias->pluck('nome')
+        ->map(fn ($n) => in_array(strtolower($n), ['instagram','facebook', 'Facebook', 'Instagram']) ? 'Meta Ads' : $n)
+        ->unique()
+        ->values();
+
+    foreach ($nomesZero as $nome) {
+        if (!isset($itens[$nome])) {
+            $m  = $midias->firstWhere('nome', $nome);
+            $id = $m?->id; // pode ser null para 'meta-ads'
+
+            $itens[$nome] = [
+                'midia'   => ['id' => $id, 'nome' => $nome],
+                'total'   => 0,
+                'percent' => 0.0,
             ];
         }
-
-        foreach ($midias as $slug => $m) {
-            if (!isset($itens[$slug])) {
-                $itens[$slug] = [
-                    'midia'   => ['id'=>$m->id,'nome'=>$m->nome,'slug'=>$slug],
-                    'total'   => 0,
-                    'percent' => 0.0,
-                ];
-            }
-        }
-
-        $itens = array_values(collect($itens)->sortByDesc('total')->all());
-
-        return response()->json([
-            'periodo' => [
-                'inicio' => $inicio->toDateString(),
-                'fim'    => $fim->toDateString(),
-                'label'  => $inicio->translatedFormat('F/Y'),
-            ],
-            'total' => $totalMes,
-            'itens' => $itens,
-        ]);
     }
+
+    // ordena por total desc e transforma em array sequencial
+    $itens = array_values(collect($itens)->sortByDesc('total')->all());
+
+    return response()->json([
+        'periodo' => [
+            'inicio' => $inicio->toDateString(),
+            'fim'    => $fim->toDateString(),
+            'label'  => $inicio->translatedFormat('F/Y'),
+        ],
+        'total' => $totalMes,
+        'itens' => $itens,
+    ]);
+}
+
 }

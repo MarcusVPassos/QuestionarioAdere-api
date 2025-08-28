@@ -9,7 +9,6 @@ return new class extends Migration {
         Schema::create('midias', function (Blueprint $table) {
             $table->id();
             $table->string('nome')->unique();
-            $table->string('slug')->unique();
             $table->boolean('ativo')->default(true);
             $table->timestamps();
         });
